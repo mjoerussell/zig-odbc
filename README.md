@@ -40,7 +40,7 @@ pub fn build(b: *Builder) void {
 
 ## Examples
 
-### Set Up Application Environment and Create Table
+### 1. Set Up Application Environment and Create Table
 
 This example connects to a database, sets and gets some attributes, and creates a table using `Statement.executeDirect`.
 
