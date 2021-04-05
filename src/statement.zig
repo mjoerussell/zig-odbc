@@ -51,7 +51,14 @@ pub const Statement = struct {
     /// * target_buffer - The buffer that data will be put into. 
     /// * str_len_or_ind_ptr - An indicator value that will later be used to determine the length of data put into `target_buffer`.
     pub fn bindColumn(self: *Statement, column_number: u16, comptime target_type: odbc.CType, target_buffer: []target_type.toType(), str_len_or_ind_ptr: *c_longlong) !void {
-        const result = c.SQLBindCol(self.handle, column_number, @enumToInt(target_type), target_buffer.ptr, @intCast(c_longlong, target_buffer.len * @sizeOf(comptime target_type.toType())), str_len_or_ind_ptr);
+        const result = c.SQLBindCol(
+            self.handle, 
+            column_number, 
+            @enumToInt(target_type), 
+            @ptrCast(*c_void, target_buffer.ptr), 
+            @intCast(c_longlong, target_buffer.len * @sizeOf(target_type.toType())), 
+            str_len_or_ind_ptr
+        );
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.bindColumn passed invalid handle"),
@@ -77,7 +84,7 @@ pub const Statement = struct {
             @enumToInt(parameter_type), 
             @sizeOf(@TypeOf(value)),
             @intCast(c.SQLSMALLINT, decimal_digits orelse 0),
-            @ptrCast([*c]c_void, value), 
+            @ptrCast(*c_void, value), 
             @sizeOf(@TypeOf(value)),
             str_len_or_ind_ptr
         );

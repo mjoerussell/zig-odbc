@@ -38,7 +38,9 @@ pub fn build(b: *Builder) void {
 }
 ```
 
-## Example Application
+## Examples
+
+### Set Up Application Environment and Create Table
 
 This example connects to a database, sets and gets some attributes, and creates a table using `Statement.executeDirect`.
 
@@ -194,5 +196,74 @@ pub fn main() anyerror!void {
         return err;
     }
     std.debug.print("Execute result: {s}\n", .{@tagName(create_table_result)});
+}
+```
+
+### 2. Insert Values into a Table, Get Results from Prepared Statement
+
+```zig
+pub fn main() !void {
+    /// Same setup as previous example...
+
+    // Insert Values
+    _ = try statement.executeDirect(
+        \\INSERT INTO odbc_zig_test (name, occupation, age) VALUES
+        \\('Dave', 'Waiter', 25),
+        \\('Andrea', 'Taxi Driver', 40),
+        \\('Reese', 'Scientist', '30')
+    );
+
+    // Prepare to query database by binding a parameter
+    var parameter_value: u8 = 28;
+    var param_ind: c_longlong = 0;
+    try statement.bindParameter(1, .Input, .UTinyInt, .Integer, &parameter_value, null, &param_ind);
+
+    // Bind columns from the result set
+    var id_buf: u8 = 0;
+    var id_ind: c_longlong = 0;
+    var name_buf: [1024]u8 = undefined;
+    var name_ind: c_longlong = 0;
+    var occupation_buf: [1024]u8 = undefined;
+    var occupation_ind: c_longlong = 0;
+    var age_buf: u8 = 0;
+    var age_ind: c_longlong = 0;
+
+    try statement.bindColumn(1, .UTinyInt, @ptrCast([*]u8, &id_buf)[0..1], &id_ind);
+    try statement.bindColumn(2, .Char, name_buf[0..], &name_ind);
+    try statement.bindColumn(3, .Char, occupation_buf[0..], &occupation_ind);
+    try statement.bindColumn(4, .UTinyInt, @ptrCast([*]u8, &age_buf)[0..1], &age_ind);
+
+    // Execute the query
+    _ = try statement.executeDirect(
+        \\SELECT * FROM odbc_zig_test
+        \\WHERE age > ?
+    );
+
+    // Fetch all the results
+    while (true) {
+        if (statement.fetch()) {
+            if (id_ind != odbc.sys.SQL_NULL_DATA) {
+                std.debug.print("Id: {}\n", .{id_buf});
+            }
+            if (name_ind != odbc.sys.SQL_NULL_DATA) {
+                std.debug.print("Name: {s}\n", .{name_buf[0..@intCast(usize, name_ind)]});
+            }
+            if (occupation_ind != odbc.sys.SQL_NULL_DATA) {
+                std.debug.print("Occupation: {s}\n", .{occupation_buf[0..@intCast(usize, occupation_ind)]});
+            }
+            if (age_ind != odbc.sys.SQL_NULL_DATA) {
+                std.debug.print("Age: {}\n", .{age_buf});
+            }
+        } else |err| {
+            switch (err) {
+                error.NoData => {
+                    std.debug.print("No Data Available", .{});
+                    break;
+                },
+                error.StillExecuting => continue,
+                else => break
+            }
+        }
+    }
 }
 ```
