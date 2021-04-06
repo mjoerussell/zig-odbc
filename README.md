@@ -170,6 +170,7 @@ pub fn main() anyerror!void {
             switch (err) {
                 error.NoData => {
                     std.debug.print("No data available\n", .{});
+                    try statement.closeCursor();
                     break;
                 },
                 error.StillExecuting => continue,
