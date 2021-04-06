@@ -1491,6 +1491,29 @@ pub const CType = enum(odbc.SQLSMALLINT) {
         };
     }
 
+    pub fn fromType(comptime T: type) CType {
+        if (std.meta.trait.isZigString(T)) return .Char;
+        return switch (T) {
+            Date => .Date,
+            Time => .Time,
+            Timestamp => .Timestamp,
+            Numeric => .Numeric,
+            Guid => .Guid,
+            c_short => .SShort,
+            c_ushort => .UShort,
+            c_long => .SLong,
+            c_ulong => .ULong,
+            f32 => .Float,
+            f64 => .Double,
+            u8 => .Bit,
+            i8 => .STinyInt,
+            u8 => .UTinyInt,
+            i64 => .SBigInt,
+            u64 => .UBigInt,
+            u8 => .Binary,
+        };
+    }
+
     pub fn isSlice(c_type: CType) bool {
         return switch (c_type) {
             .Char, .WChar, .Binary, .VarBookmark => true,
