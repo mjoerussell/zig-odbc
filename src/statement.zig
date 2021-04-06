@@ -198,7 +198,7 @@ pub const Statement = struct {
         var name_length: c_short = 0;
         _ = c.SQLDescribeCol(self.handle, column_number, null, 0, &name_length, null, null, null, null);
 
-        column_desc.name = self.allocator.allocSentinel(u8, name_length, 0);
+        column_desc.name = try self.allocator.allocSentinel(u8, name_length, 0);
 
         const result = c.SQLDescribeCol(
             self.handle, 
@@ -240,6 +240,7 @@ pub const Statement = struct {
         };
     }
 
+    /// Prepare a SQL statement for execution.
     pub fn prepare(self: *Statement, sql_statement: []const u8) !void {
         const result = c.SQLPrepare(self.handle, sql_statement.ptr, @intCast(c.SQLINTEGER, sql_statement.len));
         return switch (@intToEnum(SqlReturn, result)) {
@@ -249,6 +250,7 @@ pub const Statement = struct {
         };
     }
 
+    /// Execute a prepared SQL statement.
     pub fn execute(self: *Statement) ReturnError!SqlReturn {
         const result = c.SQLExecute(self.handle);
         return switch (@intToEnum(SqlReturn, result)) {
@@ -258,6 +260,7 @@ pub const Statement = struct {
         };
     }
 
+    /// Execute a SQL statement directly. This is the fastest way to execute a SQL statement once.
     pub fn executeDirect(self: *Statement, statement_text: []const u8) ReturnError!SqlReturn {
         const result = c.SQLExecDirect(self.handle, @intToPtr([*c]u8, @ptrToInt(statement_text.ptr)), @intCast(c.SQLINTEGER, statement_text.len));
         return switch (@intToEnum(SqlReturn, result)) {
@@ -267,6 +270,7 @@ pub const Statement = struct {
         };
     }
 
+    /// Fetch the next rowset of data from the result set and return data in all bound columns.
     pub fn fetch(self: *Statement) ReturnError!void {
         const result = c.SQLFetch(self.handle);
         return switch (@intToEnum(SqlReturn, result)) {
@@ -278,8 +282,10 @@ pub const Statement = struct {
         };
     }
 
-    pub fn fetchScroll(self: *Statement, orientation: odbc.FetchOrientation, offset: c.SQLLEN) ReturnError!void {
-        const result = c.SQLFetchScroll(self.handle, @enumToInt(orientation), offset);
+    /// Fetch a specified rowset of data from the result set and return data in all bound columns. Rowsets
+    /// can be specified at an absolute position, relative position, or by bookmark.
+    pub fn fetchScroll(self: *Statement, orientation: odbc.FetchOrientation, offset: usize) ReturnError!void {
+        const result = c.SQLFetchScroll(self.handle, @enumToInt(orientation), @intCast(c_longlong, offset));
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.fetchScroll passed invalid handle"),
@@ -531,6 +537,7 @@ pub const Statement = struct {
         };
     }
 
+    /// Get the number of rows affected by an UPDATE, INSERT, or DELETE statement.
     pub fn rowCount(self: *Statement) ReturnError!usize {
         var row_count: c.SQLLEN = 0;
         const result = c.SQLRowCount(self.handle, &row_count);

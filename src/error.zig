@@ -18,9 +18,10 @@ fn StringEnum(comptime E: type, comptime str_map: anytype) type {
         }
 
         pub fn toString(enum_val: E) []const u8 {
-            return inline for (str_map) |mapping| {
-                if (mapping[1] == enum_val) break mapping[0];
-            };
+            inline for (str_map) |mapping| {
+                if (mapping[1] == enum_val) return mapping[0];
+            }
+            unreachable;
         }
     };
 }
