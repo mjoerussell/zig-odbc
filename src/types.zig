@@ -1389,7 +1389,7 @@ pub const CType = enum(odbc.SQLSMALLINT) {
     Numeric = odbc.SQL_C_NUMERIC,
     Guid = odbc.SQL_C_GUID,
 
-    pub const Interval = packed struct {
+    pub const Interval = struct {
         pub const IntervalType = enum(odbc.SQLSMALLINT) {
             Year = 1,
             Month = 2,
@@ -1420,26 +1420,26 @@ pub const CType = enum(odbc.SQLSMALLINT) {
         };
 
         interval_type: IntervalType,
-        interval_sign: IntervalSign,
+        // interval_sign: IntervalSign,
         int_val: union(enum) {
             year_month: YearMonth,
             day_second: DaySecond 
         },
     };
 
-    pub const Date = packed struct {
+    pub const SqlDate = packed struct {
         year: odbc.SQLSMALLINT,
         month: c_ushort,
         day: c_ushort,
     };
 
-    pub const Time = packed struct {
+    pub const SqlTime = packed struct {
         hour: c_ushort,
         minute: c_ushort,
         second: c_ushort,
     };
 
-    pub const Timestamp = packed struct {
+    pub const SqlTimestamp = packed struct {
         year: odbc.SQLSMALLINT,
         month: c_ushort,
         day: c_ushort,
@@ -1449,14 +1449,14 @@ pub const CType = enum(odbc.SQLSMALLINT) {
         fraction: c_ushort,
     };
 
-    pub const Numeric = packed struct {
+    pub const SqlNumeric = packed struct {
         precision: odbc.SQLCHAR,
         scale: odbc.SQLSCHAR,
         sign: odbc.SQLCHAR,
         val: [odbc.SQL_MAX_NUMERIC_LEN]odbc.SQLCHAR,
     };
 
-    pub const Guid = packed struct {
+    pub const SqlGuid = packed struct {
         data_1: u32,
         data_2: u16,
         data_3: u16,
@@ -1483,22 +1483,22 @@ pub const CType = enum(odbc.SQLSMALLINT) {
             .IntervalHour, .IntervalMinute, .IntervalSecond,
             .IntervalDayToHour, .IntervalDayToMinute, .IntervalDayToSecond,
             .IntervalHourToMinute, .IntervalHourToSecond, .IntervalMinuteToSecond => Interval,
-            .Date => Date,
-            .Time => Time,
-            .Timestamp => Timestamp,
-            .Numeric => Numeric,
-            .Guid => Guid,
+            .Date => SqlDate,
+            .Time => SqlTime,
+            .Timestamp => SqlTimestamp,
+            .Numeric => SqlNumeric,
+            .Guid => SqlGuid,
         };
     }
 
     pub fn fromType(comptime T: type) ?CType {
         if (std.meta.trait.isZigString(T)) return .Char;
         return switch (T) {
-            Date => .Date,
-            Time => .Time,
-            Timestamp => .Timestamp,
-            Numeric => .Numeric,
-            Guid => .Guid,
+            SqlDate => .Date,
+            SqlTime => .Time,
+            SqlTimestamp => .Timestamp,
+            SqlNumeric => .Numeric,
+            SqlGuid => .Guid,
             c_short => .SShort,
             c_ushort => .UShort,
             c_long => .SLong,
@@ -1515,7 +1515,7 @@ pub const CType = enum(odbc.SQLSMALLINT) {
 
     pub fn isSlice(c_type: CType) bool {
         return switch (c_type) {
-            .Char, .WChar, .Binary, .VarBookmark => true,
+            .Char, .WChar, .Binary, => true,
             else => false
         };
     }
@@ -1572,11 +1572,11 @@ pub const SqlType = extern enum(odbc.SQLSMALLINT) {
             i64 => .BigInt,
             f32 => .Float,
             f64 => .Double,
-            CType.Date => .Date,
-            CType.Time => .Time,
-            CType.Timestamp => .Timestamp,
-            CType.Numeric => .Numeric,
-            CType.Guid => .Guid,
+            CType.SqlDate => .Date,
+            CType.SqlTime => .Time,
+            CType.SqlTimestamp => .Timestamp,
+            CType.SqlNumeric => .Numeric,
+            CType.SqlGuid => .Guid,
             else => null
         };
     }
@@ -1961,3 +1961,30 @@ pub const Reserved = enum(odbc.SQLUSMALLINT) {
     Ensure = odbc.SQL_ENSURE,
     Quick = odbc.SQL_QUICK,
 };
+
+
+test "CType" {
+    const conforms = struct {
+        fn conforms(comptime base_type: type, comptime test_type: type) bool {
+            const BaseInfo = @typeInfo(base_type);
+
+            if (std.meta.activeTag(@typeInfo(test_type)) != .Struct) return false;
+
+            inline for (BaseInfo.Struct.fields) |field| {
+                if (!@hasField(test_type, field.name)) return false;
+            }
+
+            inline for (BaseInfo.Struct.decls) |decl| {
+                if (!@hasDecl(test_type, decl.name)) return false;
+            }
+
+            return true;
+        }
+    }.conforms;
+
+    std.testing.refAllDecls(CType);
+
+    const IntervalType = CType.toType(.IntervalHourToMinute);
+    std.testing.expect(conforms(CType.Interval, IntervalType));
+    
+}
