@@ -1569,6 +1569,7 @@ pub const SqlType = extern enum(odbc.SQLSMALLINT) {
             i8 => .TinyInt,
             i16 => .SmallInt,
             i32 => .Integer,
+            i64 => .BigInt,
             f32 => .Float,
             f64 => .Double,
             CType.Date => .Date,
