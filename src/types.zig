@@ -1986,5 +1986,8 @@ test "CType" {
 
     const IntervalType = CType.toType(.IntervalHourToMinute);
     std.testing.expect(conforms(CType.Interval, IntervalType));
-    
+}
+
+test "SqlType" {
+    std.testing.refAllDecls(SqlType);
 }
