@@ -1491,7 +1491,7 @@ pub const CType = enum(odbc.SQLSMALLINT) {
         };
     }
 
-    pub fn fromType(comptime T: type) CType {
+    pub fn fromType(comptime T: type) ?CType {
         if (std.meta.trait.isZigString(T)) return .Char;
         return switch (T) {
             Date => .Date,
@@ -1511,6 +1511,7 @@ pub const CType = enum(odbc.SQLSMALLINT) {
             i64 => .SBigInt,
             u64 => .UBigInt,
             u8 => .Binary,
+            else => null
         };
     }
 
@@ -1560,6 +1561,26 @@ pub const SqlType = extern enum(odbc.SQLSMALLINT) {
     IntervalHourToSecond = odbc.SQL_INTERVAL_HOUR_TO_SECOND,
     IntervalMinuteToSecond = odbc.SQL_INTERVAL_MINUTE_TO_SECOND,
     Guid = odbc.SQL_GUID,
+
+    pub fn fromType(comptime T: type) ?SqlType {
+        return switch (T) {
+            u8 => .Char,
+            []u8 => .Varchar,
+            u16 => .WChar,
+            []u16 => .WVarchar,
+            i8 => .TinyInt,
+            i16 => .SmallInt,
+            i32 => .Integer,
+            f32 => .Float,
+            f64 => .Double,
+            CType.Date => .Date,
+            CType.Time => .Time,
+            CType.Timestamp => .Timestamp,
+            CType.Numeric => .Numeric,
+            CType.Guid => .Guid,
+            else => null
+        };
+    }
 };
 
 pub const StatementAttribute = enum(i32) {
