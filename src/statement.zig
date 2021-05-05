@@ -50,13 +50,24 @@ pub const Statement = struct {
     /// * target_type - The C data type of the buffer.
     /// * target_buffer - The buffer that data will be put into. 
     /// * str_len_or_ind_ptr - An indicator value that will later be used to determine the length of data put into `target_buffer`.
-    pub fn bindColumn(self: *Statement, column_number: u16, comptime target_type: odbc.CType, target_buffer: []target_type.toType(), str_len_or_ind_ptr: *c_longlong) !void {
+    pub fn bindColumn(self: *Statement, column_number: u16, target_type: odbc.CType, target_buffer: anytype, str_len_or_ind_ptr: *c_longlong) !void {
+        const BufferInfo = @typeInfo(@TypeOf(target_buffer));
+        comptime {
+            switch (BufferInfo) {
+                .Pointer => switch (BufferInfo.Pointer.size) {
+                    .Slice => {},
+                    else => @compileError("Expected a slice for parameter target_buffer, got " ++ @typeName(@TypeOf(target_buffer)))
+                },
+                else => @compileError("Expected a slice for parameter target_buffer, got " ++ @typeName(@TypeOf(target_buffer)))
+            }
+        }
+
         const result = c.SQLBindCol(
             self.handle, 
             column_number, 
             @enumToInt(target_type), 
             @ptrCast(*c_void, target_buffer.ptr), 
-            @intCast(c_longlong, target_buffer.len * @sizeOf(target_type.toType())), 
+            @intCast(c_longlong, target_buffer.len * @sizeOf(BufferInfo.Pointer.child)), 
             str_len_or_ind_ptr
         );
         return switch (@intToEnum(SqlReturn, result)) {
@@ -75,7 +86,13 @@ pub const Statement = struct {
     /// * value: A pointer to a value to bind. If `io_type` is an output type, this pointer will contain the result of getting param data after execution.
     /// * decimal_digits: The number of digits to use for floating point numbers. `null` for other data types.
     /// * str_len_or_ind_ptr: A pointer to a value describing the parameter's length.
-    pub fn bindParameter(self: *Statement, parameter_number: u16, io_type: odbc.InputOutputType, comptime value_type: odbc.CType, parameter_type: odbc.SqlType, value: *value_type.toType(), decimal_digits: ?u16, str_len_or_ind_ptr: *c.SQLLEN) ReturnError!void {
+    // pub fn bindParameter(self: *Statement, parameter_number: u16, io_type: odbc.InputOutputType, comptime value_type: odbc.CType, parameter_type: odbc.SqlType, value: *value_type.toType(), decimal_digits: ?u16, str_len_or_ind_ptr: *c.SQLLEN) ReturnError!void {
+    pub fn bindParameter(self: *Statement, parameter_number: u16, io_type: odbc.InputOutputType, value_type: odbc.CType, parameter_type: odbc.SqlType, value: anytype, decimal_digits: ?u16, str_len_or_ind_ptr: *c.SQLLEN) !void {
+        const ValueInfo = @typeInfo(@TypeOf(value));
+        comptime if (std.meta.activeTag(ValueInfo) != .Pointer) {
+            @compileError("Expected parameter \"value\" to be a pointer");
+        };
+        
         const result = c.SQLBindParameter(
             self.handle, 
             parameter_number, 
@@ -242,7 +259,7 @@ pub const Statement = struct {
 
     /// Prepare a SQL statement for execution.
     pub fn prepare(self: *Statement, sql_statement: []const u8) !void {
-        const result = c.SQLPrepare(self.handle, sql_statement.ptr, @intCast(c.SQLINTEGER, sql_statement.len));
+        const result = c.SQLPrepare(self.handle, @intToPtr([*]u8, @ptrToInt(sql_statement.ptr)), @intCast(c.SQLINTEGER, sql_statement.len));
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.prepare passed invalid handle"),

@@ -1493,6 +1493,13 @@ pub const CType = enum(odbc.SQLSMALLINT) {
 
     pub fn fromType(comptime T: type) ?CType {
         if (std.meta.trait.isZigString(T)) return .Char;
+        switch (@typeInfo(T)) {
+            .Array => {
+                if (@typeInfo(T).Array.child == u8) return .Char; 
+                if (@typeInfo(T).Array.child == u16) return .WChar; 
+            },
+            else => {}
+        }
         return switch (T) {
             SqlDate => .Date,
             SqlTime => .Time,
@@ -1507,8 +1514,8 @@ pub const CType = enum(odbc.SQLSMALLINT) {
             f64 => .Double,
             i8 => .STinyInt,
             u8 => .UTinyInt,
-            i64 => .SBigInt,
-            u64 => .UBigInt,
+            i64, i32, i16 => .SBigInt,
+            u64, u32, u16 => .UBigInt,
             else => null
         };
     }
