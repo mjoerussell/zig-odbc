@@ -1568,6 +1568,7 @@ pub const SqlType = extern enum(odbc.SQLSMALLINT) {
     Guid = odbc.SQL_GUID,
 
     pub fn fromType(comptime T: type) ?SqlType {
+        if (std.meta.trait.isZigString(T)) return .Varchar;
         return switch (T) {
             u8 => .Char,
             []u8 => .Varchar,
