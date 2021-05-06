@@ -149,8 +149,18 @@ pub const Statement = struct {
         };
     }
 
-    pub fn columns(self: *Statement, catalog_name: []const u8, schema_name: []const u8, table_name: []const u8) ReturnError!void {
-        const result = c.SQLColumns(self.handle, catalog_name.ptr, @intCast(u16, catalog_name.len), schema_name.ptr, @intCast(u16, schema_name.len), table_name.ptr, @intCast(u16, table_name.len));
+    pub fn columns(self: *Statement, catalog_name: []const u8, schema_name: []const u8, table_name: []const u8, column_name: ?[]const u8) ReturnError!void {
+        const result = c.SQLColumns(
+            self.handle, 
+            @intToPtr([*c]u8, @ptrToInt(catalog_name.ptr)), 
+            @intCast(c_short, catalog_name.len), 
+            @intToPtr([*c]u8, @ptrToInt(schema_name.ptr)), 
+            @intCast(c_short, schema_name.len), 
+            @intToPtr([*c]u8, @ptrToInt(table_name.ptr)), 
+            @intCast(c_short, table_name.len),
+            if (column_name) |cn| @intToPtr([*c]u8, @ptrToInt(cn.ptr)) else null,
+            if (column_name) |cn| @intCast(c_short, cn.len) else 0
+        );
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.columns passed invalid handle"),
