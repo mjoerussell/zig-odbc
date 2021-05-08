@@ -1514,8 +1514,8 @@ pub const CType = enum(odbc.SQLSMALLINT) {
             f64 => .Double,
             i8 => .STinyInt,
             u8 => .UTinyInt,
-            i64 => .SBigInt,
-            u64 => .UBigInt,
+            i64, c_longlong => .SBigInt,
+            u64, c_ulonglong => .UBigInt,
             else => null
         };
     }
