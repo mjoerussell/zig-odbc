@@ -1,10 +1,11 @@
 const std = @import("std");
+const TypeInfo = std.builtin.TypeInfo;
 
 pub fn Bitmask(comptime BackingType: type, comptime fields: anytype) type {
     const BaseStruct = packed struct {};
     var base_struct_info = @typeInfo(BaseStruct);
 
-    var incoming_fields: [fields.len]std.builtin.TypeInfo.StructField = undefined;
+    var incoming_fields: [fields.len]TypeInfo.StructField = undefined;
     inline for (fields) |field, i| {
         incoming_fields[i] = .{
             .name = field[0],
@@ -49,7 +50,20 @@ pub fn Bitmask(comptime BackingType: type, comptime fields: anytype) type {
             return result;
         } 
     };
+}
 
+pub fn EnumErrorSet(comptime BaseEnum: type) type {
+    switch (@typeInfo(BaseEnum)) {
+        .Enum => |info| {
+            var error_set: [info.fields.len]TypeInfo.Error = undefined;
+            inline for (info.fields) |field, index| {
+                error_set[index] = .{ .name = field.name };
+            }
+
+            return @Type(TypeInfo{ .ErrorSet = error_set[0..] });
+        },
+        else => @compileError("EnumErrorSet requires an enum, found " ++ @typeName(BaseEnum))
+    }
 }
 
 /// Initialize a tagged union with a comptime-known enum value. This is just a thin wrapper over the builtin function @unionInit.
@@ -71,9 +85,9 @@ test "bitmask" {
 
     const test_value = TestType.applyBitmask(0b0110);
 
-    std.testing.expect(!test_value.fieldA);
-    std.testing.expect(test_value.fieldB);
-    std.testing.expect(test_value.fieldC);
+    try std.testing.expect(!test_value.fieldA);
+    try std.testing.expect(test_value.fieldB);
+    try std.testing.expect(test_value.fieldC);
 
     const test_set: TestType.Result = .{
         .fieldA = true,
@@ -83,5 +97,30 @@ test "bitmask" {
 
     const test_set_result = TestType.createBitmask(test_set);
 
-    std.testing.expectEqual(@as(u4, 0b0101), test_set_result);
+    try std.testing.expectEqual(@as(u4, 0b0101), test_set_result);
+}
+
+test "enum error" {
+    const Base = enum {
+        A,
+        B,
+        C
+    };
+
+    const BaseError = EnumErrorSet(Base);
+
+    try std.testing.expectEqualStrings("A", @typeInfo(BaseError).ErrorSet.?[0].name);
+    try std.testing.expectEqualStrings("B", @typeInfo(BaseError).ErrorSet.?[1].name);
+    try std.testing.expectEqualStrings("C", @typeInfo(BaseError).ErrorSet.?[2].name);
+
+    // Just making sure everything compiles, that BaseError is accepted in the error
+    // spot of the return type.
+    // The actual logic below is pretty basic and not really the point here
+    const test_func = (struct {
+        pub fn f() BaseError!void {
+            return BaseError.B;
+        }
+    }).f;
+
+    try std.testing.expectError(BaseError.B, test_func());
 }

@@ -45,7 +45,15 @@ pub const Connection = struct {
     }
 
     pub fn connect(self: *Connection, server_name: []const u8, user_name: []const u8, password: []const u8) ReturnError!void {
-        const result = c.SQLConnect(self.handle, server_name.ptr, @intCast(i16, server_name.len), user_name.ptr, @intCast(i16, user_name.len), password.ptr, @intCast(i16, password.len));
+        const result = c.SQLConnect(
+            self.handle, 
+            @intToPtr([*c]u8, @ptrToInt(server_name.ptr)), 
+            @intCast(i16, server_name.len), 
+            @intToPtr([*c]u8, @ptrToInt(user_name.ptr)), 
+            @intCast(i16, user_name.len), 
+            @intToPtr([*c]u8, @ptrToInt(password.ptr)), 
+            @intCast(i16, password.len)
+        );
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {
                 self.connected = true;
