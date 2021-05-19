@@ -1,3 +1,5 @@
+[![build-platforms](https://github.com/mjoerussell/zig-odbc/actions/workflows/build-platforms.yaml/badge.svg)](https://github.com/mjoerussell/zig-odbc/actions/workflows/build-platforms.yaml)
+
 # Zig ODBC Bindings
 
 Idiomatic Zig bindings for the ODBC driver interface. This is meant to be a low-level building block for ODBC interfaces or applications. It can be used directly
