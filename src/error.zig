@@ -269,6 +269,11 @@ pub const OdbcError = StringEnum(SqlState, .{
 pub const DiagnosticRecord = struct {
     sql_state: [5:0]u8,
     error_code: i32,
+    error_message: []const u8,
+
+    pub fn deinit(self: *DiagnosticRecord, allocator: *Allocator) void {
+        allocator.free(self.error_message);
+    }
 };
 
 pub fn getDiagnosticRecords(allocator: *Allocator, handle_type: odbc.HandleType, handle: *c_void) ![]DiagnosticRecord {
@@ -281,7 +286,18 @@ pub fn getDiagnosticRecords(allocator: *Allocator, handle_type: odbc.HandleType,
     var record_index: i16 = 1;
     while (record_index <= num_records) : (record_index += 1) {
         var record: DiagnosticRecord = undefined;
-        const result = c.SQLGetDiagRec(@enumToInt(handle_type), handle, record_index, record.sql_state[0..], &@intCast(c_long, record.error_code), null, 0, null);
+        const error_message_size: usize = 100; 
+        record.error_message = try allocator.alloc(u8, error_message_size);
+        const result = c.SQLGetDiagRec(
+            @enumToInt(handle_type),
+            handle,
+            record_index,
+            record.sql_state[0..],
+            @ptrCast([*c]c_int, &record.error_code), 
+            @intToPtr([*c]u8, @ptrToInt(record.error_message.ptr)), 
+            @intCast(c_long, error_message_size), 
+            null
+        );
         switch (@intToEnum(odbc.SqlReturn, result)) {
             .Success, .SuccessWithInfo => records[@intCast(usize, record_index - 1)] = record,
             .InvalidHandle => return error.InvalidHandle,
