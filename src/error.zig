@@ -286,20 +286,24 @@ pub fn getDiagnosticRecords(allocator: *Allocator, handle_type: odbc.HandleType,
     var record_index: i16 = 1;
     while (record_index <= num_records) : (record_index += 1) {
         var record: DiagnosticRecord = undefined;
-        const error_message_size: usize = 100; 
-        record.error_message = try allocator.alloc(u8, error_message_size);
+        var error_message_buf = try allocator.alloc(u8, 100);
+        var error_message_length: c.SQLSMALLINT = 0;
         const result = c.SQLGetDiagRec(
             @enumToInt(handle_type),
             handle,
             record_index,
             record.sql_state[0..],
             @ptrCast([*c]c_int, &record.error_code), 
-            @intToPtr([*c]u8, @ptrToInt(record.error_message.ptr)), 
-            @intCast(c_long, error_message_size), 
-            null
+            @intToPtr([*c]u8, @ptrToInt(error_message_buf.ptr)), 
+            @intCast(c_short, error_message_buf.len), 
+            &error_message_length
         );
         switch (@intToEnum(odbc.SqlReturn, result)) {
-            .Success, .SuccessWithInfo => records[@intCast(usize, record_index - 1)] = record,
+            .Success, .SuccessWithInfo => {
+                error_message_buf = try allocator.realloc(error_message_buf, @intCast(usize, error_message_length));
+                record.error_message = error_message_buf;
+                records[@intCast(usize, record_index - 1)] = record;
+            },
             .InvalidHandle => return error.InvalidHandle,
             else => break
         }
