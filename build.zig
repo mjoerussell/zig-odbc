@@ -20,7 +20,7 @@ pub fn build(b: *Builder) void {
     
     if (builtin.os.tag == .macos) {
         lib.addIncludeDir("/usr/local/include");
-        lib.addIncludeDir("/usr/local/Cellar/unixodbc/2.3.9");
+        lib.addIncludeDir("/usr/local/lib");
     }
 
     lib.linkSystemLibrary(odbc_library_name);
@@ -35,7 +35,7 @@ pub fn build(b: *Builder) void {
 
         if (builtin.os.tag == .macos) {
             file_tests.addIncludeDir("/usr/local/include");
-            file_tests.addIncludeDir("/usr/local/Cellar/unixodbc/2.3.9");
+            file_tests.addIncludeDir("/usr/local/lib");
         }
 
         file_tests.linkSystemLibrary(odbc_library_name);
