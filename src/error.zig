@@ -286,7 +286,7 @@ pub fn getDiagnosticRecords(allocator: *Allocator, handle_type: odbc.HandleType,
     var record_index: i16 = 1;
     while (record_index <= num_records) : (record_index += 1) {
         var record: DiagnosticRecord = undefined;
-        var error_message_buf = try allocator.alloc(u8, 100);
+        var error_message_buf = try allocator.alloc(u8, 200);
         var error_message_length: c.SQLSMALLINT = 0;
         const result = c.SQLGetDiagRec(
             @enumToInt(handle_type),
