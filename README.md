@@ -1,4 +1,4 @@
-![Build](https://github.com/mjoerussell/zig-odbc/actions/workflows/build-platforms.yml/badge.svg)
+[![build-platforms](https://github.com/mjoerussell/zig-odbc/actions/workflows/build-platforms.yaml/badge.svg)](https://github.com/mjoerussell/zig-odbc/actions/workflows/build-platforms.yaml)
 
 # Zig ODBC Bindings
 
