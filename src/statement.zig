@@ -169,22 +169,34 @@ pub const Statement = struct {
         };
     }
 
-    pub fn getColumnAttribute(self: *Statement, column_number: c_ushort, comptime attr: odbc.ColumnAttribute) !odbc.ColumnAttributeValue {
+    pub fn getColumnAttribute(self: *Statement, column_number: usize, comptime attr: odbc.ColumnAttribute) !odbc.ColumnAttributeValue {
         var string_attr_length: c_short = 0;
         // First call to get the length of the string required to hold the string attribute value, if applicable
-        _ = c.SQLColAttribute(self.handle, column_number, @enumToInt(attr), null, 0, &string_attr_length, null);
+        _ = c.SQLColAttribute(self.handle, @intCast(c_ushort, column_number), @enumToInt(attr), null, 0, &string_attr_length, null);
 
         var string_attr: [:0]u8 = try self.allocator.allocSentinel(u8, @intCast(usize, string_attr_length), 0);
         errdefer self.allocator.free(string_attr);
 
-        var numeric_attribute: c.SQLLEN = 0;
-        const result = c.SQLColAttribute(self.handle, column_number, @enumToInt(attr), &string_attr, string_attr_length + 1, &string_attr_length, @ptrCast([*c]c_longlong, &numeric_attribute));
+        var numeric_attribute: c_longlong = 0;
+        const result = c.SQLColAttribute(
+            self.handle, 
+            @intCast(c_ushort, column_number), 
+            @enumToInt(attr), 
+            string_attr.ptr, 
+            string_attr_length + 1, 
+            &string_attr_length, 
+            &numeric_attribute
+        );
+
+        if (string_attr_length == 0) {
+            self.allocator.free(string_attr);
+        }
 
         switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {
                 return unionInitEnum(odbc.ColumnAttributeValue, attr, switch (attr) {
                     .AutoUniqueValue => numeric_attribute == c.SQL_TRUE,
-                    .BaseColumnName => string_attr,
+                    .BaseColumnName => string_attr[0..@intCast(usize, string_attr_length)],
                     .BaseTableName => string_attr,
                     .CaseSensitive => numeric_attribute == c.SQL_TRUE,
                     .CatalogName => string_attr,
@@ -206,7 +218,7 @@ pub const Statement = struct {
                     .SchemaName => string_attr,
                     .Searchable => @intToEnum(odbc.ColumnAttributeValue.Searchable, numeric_attribute),
                     .TableName => string_attr,
-                    .Type => @intToEnum(odbc.SqlType, numeric_attribute),
+                    .Type => @intToEnum(odbc.SqlType, @intCast(c_short, numeric_attribute)),
                     .TypeName => string_attr,
                     .Unnamed => numeric_attribute == c.SQL_NAMED,
                     .Unsigned => numeric_attribute == c.SQL_TRUE,

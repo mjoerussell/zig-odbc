@@ -1527,6 +1527,11 @@ pub const CType = enum(odbc.SQLSMALLINT) {
         };
     }
 
+    pub fn defaultSqlType(comptime c_type: CType) ?SqlType {
+        const zig_type = c_type.toType();
+        return SqlType.fromType(zig_type);
+    }
+
 };
 
 pub const SqlType = extern enum(odbc.SQLSMALLINT) {
@@ -1586,6 +1591,47 @@ pub const SqlType = extern enum(odbc.SQLSMALLINT) {
             CType.SqlNumeric => .Numeric,
             CType.SqlGuid => .Guid,
             else => null
+        };
+    }
+
+    pub fn defaultCType(sql_type: SqlType) CType {
+        return switch (sql_type) {
+            .Char => .Char,
+            .Varchar => .Char,
+            .LongVarchar => .Char,
+            .WChar => .WChar,
+            .WVarchar => .WChar,
+            .WLongVarchar => .WChar,
+            .Decimal => .Float,
+            .Numeric => .Float,
+            .SmallInt => .STinyInt,
+            .Integer => .SLong,
+            .Real => .Double,
+            .Float => .Float,
+            .Double => .Double,
+            .Bit => .Bit,
+            .TinyInt => .STinyInt,
+            .BigInt => .SLong,
+            .Binary => .Bit,
+            .VarBinary => .Bit,
+            .LongVarBinary => .Bit,
+            .Date => .Date,
+            .Time => .Time,
+            .Timestamp => .Timestamp,
+            .IntervalMonth => .IntervalMonth,
+            .IntervalYear => .IntervalYear,
+            .IntervalYearToMonth => .IntervalYearToMonth,
+            .IntervalDay => .IntervalDay,
+            .IntervalHour => .IntervalHour,
+            .IntervalMinute => .IntervalMinute,
+            .IntervalSecond => .IntervalSecond,
+            .IntervalDayToHour => .IntervalDayToHour,
+            .IntervalDayToMinute => .IntervalDayToMinute,
+            .IntervalDayToSecond => .IntervalDayToSecond,
+            .IntervalHourToMinute => .IntervalHourToMinute,
+            .IntervalHourToSecond => .IntervalHourToSecond,
+            .IntervalMinuteToSecond => .IntervalMinuteToSecond,
+            .Guid => .Guid,
         };
     }
 };
@@ -1998,4 +2044,9 @@ test "CType" {
 
 test "SqlType" {
     std.testing.refAllDecls(SqlType);
+}
+
+test "SqlType to CType" {
+    const c_type = SqlType.Integer.defaultCType();
+    try std.testing.expect(c_type == CType.SLong);
 }
