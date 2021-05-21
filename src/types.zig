@@ -1557,6 +1557,8 @@ pub const SqlType = extern enum(odbc.SQLSMALLINT) {
     Date = odbc.SQL_TYPE_DATE,
     Time = odbc.SQL_TYPE_TIME,
     Timestamp = odbc.SQL_TYPE_TIMESTAMP,
+    // Snowflake - specific
+    TimestampLtz = 9,
     IntervalMonth = odbc.SQL_INTERVAL_MONTH,
     IntervalYear = odbc.SQL_INTERVAL_YEAR,
     IntervalYearToMonth = odbc.SQL_INTERVAL_YEAR_TO_MONTH,
@@ -1617,7 +1619,7 @@ pub const SqlType = extern enum(odbc.SQLSMALLINT) {
             .LongVarBinary => .Bit,
             .Date => .Date,
             .Time => .Time,
-            .Timestamp => .Timestamp,
+            .Timestamp, .TimestampLtz => .Timestamp,
             .IntervalMonth => .IntervalMonth,
             .IntervalYear => .IntervalYear,
             .IntervalYearToMonth => .IntervalYearToMonth,
@@ -2049,4 +2051,7 @@ test "SqlType" {
 test "SqlType to CType" {
     const c_type = SqlType.Integer.defaultCType();
     try std.testing.expect(c_type == CType.SLong);
+
+    const timestamp_type = SqlType.Timestamp.defaultCType();
+    try std.testing.expect(timestamp_type == CType.Timestamp);
 }
