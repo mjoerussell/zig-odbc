@@ -86,6 +86,11 @@ pub const Nullable = enum(odbc.SQLLEN) {
     Unknown = odbc.SQL_NULLABLE_UNKNOWN,
 };
 
+pub const CompletionType = enum(odbc.SQLSMALLINT) {
+    commit = odbc.SQL_COMMIT,
+    rollback = odbc.SQL_ROLLBACK,
+};
+
 /// The attributes that can be set or read for an Environment.
 pub const EnvironmentAttribute = enum(i32) {
     OdbcVersion = odbc.SQL_ATTR_ODBC_VERSION,

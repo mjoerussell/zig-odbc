@@ -133,6 +133,15 @@ pub const Connection = struct {
         };
     }
 
+    pub fn endTransaction(self: *Connection, completion_type: odbc.CompletionType) ReturnError!void {
+        const result = c.SQLEndTran(@enumToInt(HandleType.Connection), self.handle, @enumToInt(completion_type));
+        return switch (@intToEnum(SqlReturn, result)) {
+            .Success, .SuccessWithInfo => {},
+            .InvalidHandle => @panic("Connection.endTransaction passed invalid handle"),
+            else => error.Error,
+        };
+    }
+
     pub fn cancel(self: *Connection) ReturnError!void {
         const result = c.SQLCancelHandle(@enumToInt(HandleType.Connection), self.handle);
         return switch (@intToEnum(SqlReturn, result)) {

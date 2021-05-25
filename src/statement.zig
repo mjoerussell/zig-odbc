@@ -22,7 +22,7 @@ pub const Statement = struct {
     allocator: *Allocator,
 
     /// Allocate a new statement handle, using the provided connection as the parent.
-    pub fn init(connection: *Connection, allocator: *Allocator) ReturnError!Statement {
+    pub fn init(connection: Connection, allocator: *Allocator) ReturnError!Statement {
         var result: Statement = undefined;
         result.allocator = allocator;
         const alloc_result = c.SQLAllocHandle(@enumToInt(odbc.HandleType.Statement), connection.handle, @ptrCast([*c]?*c_void, &result.handle));
