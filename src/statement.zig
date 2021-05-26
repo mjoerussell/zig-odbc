@@ -149,13 +149,13 @@ pub const Statement = struct {
         };
     }
 
-    pub fn columns(self: *Statement, catalog_name: []const u8, schema_name: []const u8, table_name: []const u8, column_name: ?[]const u8) ReturnError!void {
+    pub fn columns(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, table_name: []const u8, column_name: ?[]const u8) ReturnError!void {
         const result = c.SQLColumns(
             self.handle, 
-            @intToPtr([*c]u8, @ptrToInt(catalog_name.ptr)), 
-            @intCast(c_short, catalog_name.len), 
-            @intToPtr([*c]u8, @ptrToInt(schema_name.ptr)), 
-            @intCast(c_short, schema_name.len), 
+            if (catalog_name) |cn| @intToPtr([*c]u8, @ptrToInt(cn.ptr)) else null, 
+            if (catalog_name) |cn| @intCast(c_short, cn.len) else 0, 
+            if (schema_name) |sn| @intToPtr([*c]u8, @ptrToInt(sn.ptr)) else null, 
+            if (schema_name) |sn| @intCast(c_short, sn.len) else 0, 
             @intToPtr([*c]u8, @ptrToInt(table_name.ptr)), 
             @intCast(c_short, table_name.len),
             if (column_name) |cn| @intToPtr([*c]u8, @ptrToInt(cn.ptr)) else null,

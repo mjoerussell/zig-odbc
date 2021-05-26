@@ -80,7 +80,7 @@ pub const DiagnosticIdentifier = enum(odbc.SQLSMALLINT) {
     RowCount = odbc.SQL_DIAG_ROW_COUNT
 };
 
-pub const Nullable = enum(odbc.SQLLEN) {
+pub const Nullable = enum(i32) {
     Nullable = odbc.SQL_NULLABLE,
     NonNullable = odbc.SQL_NO_NULLS,
     Unknown = odbc.SQL_NULLABLE_UNKNOWN,
