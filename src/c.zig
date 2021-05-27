@@ -20,6 +20,7 @@ const extra_decls = if (builtin.os.tag == .windows)
 else
     struct {
         pub const SQL_CP_DRIVER_AWARE = 3;
+        pub const SQL_ATTR_ASYNC_DBC_EVENT = 119;
     };
 
 pub usingnamespace c_decls;

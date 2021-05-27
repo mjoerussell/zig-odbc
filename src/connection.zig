@@ -278,8 +278,8 @@ pub const Connection = struct {
     pub fn setAttribute(self: *Connection, value: AttributeValue) !void {
         const result = switch (value) {
             // For string attributes, pass the pointers to the strings directly
-            .CurrentCatalog => |v| c.SQLSetConnectAttr(self.handle, @enumToInt(value), v.ptr, @intCast(c_long, v.len)), 
-            .Tracefile, .TranslateLib => |v| c.SQLSetConnectAttr(self.handle, @enumToInt(value), v.ptr, @intCast(c_long, v.len)),
+            .CurrentCatalog => |v| c.SQLSetConnectAttr(self.handle, @enumToInt(value), v.ptr, @intCast(c_int, v.len)), 
+            .Tracefile, .TranslateLib => |v| c.SQLSetConnectAttr(self.handle, @enumToInt(value), v.ptr, @intCast(c_int, v.len)),
             else => blk: {
                 // For integer attributes, get the value and then cast it to ?*c_void to pass it on
                 var result_buffer: [@sizeOf(u32)]u8 = undefined;
