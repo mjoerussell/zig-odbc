@@ -665,17 +665,17 @@ pub const Statement = struct {
         };
     }
 
-    pub fn tables(self: *Statement, catalog_name: []const u8, schema_name: []const u8, table_name: []const u8, table_type: []const u8) ReturnError!void {
+    pub fn tables(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, table_name: ?[]const u8, table_type: ?[]const u8) ReturnError!void {
         const result = c.SQLTables(
             self.handle,
-            @intToPtr([*c]u8, @ptrToInt(catalog_name.ptr)),
-            @intCast(c.SQLSMALLINT, catalog_name.len),
-            @intToPtr([*c]u8, @ptrToInt(schema_name.ptr)),
-            @intCast(c.SQLSMALLINT, schema_name.len),
-            @intToPtr([*c]u8, @ptrToInt(table_name.ptr)),
-            @intCast(c.SQLSMALLINT, table_name.len),
-            @intToPtr([*c]u8, @ptrToInt(table_type.ptr)),
-            @intCast(c.SQLSMALLINT, table_type.len),
+            if (catalog_name) |cn| @intToPtr([*c]u8, @ptrToInt(cn.ptr)) else null,
+            if (catalog_name) |cn| @intCast(c.SQLSMALLINT, cn.len) else 0,
+            if (schema_name) |sn| @intToPtr([*c]u8, @ptrToInt(sn.ptr)) else null,
+            if (schema_name) |sn| @intCast(c.SQLSMALLINT, sn.len) else 0,
+            if (table_name) |tn| @intToPtr([*c]u8, @ptrToInt(tn.ptr)) else null,
+            if (table_name) |tn| @intCast(c.SQLSMALLINT, tn.len) else 0,
+            if (table_type) |tt| @intToPtr([*c]u8, @ptrToInt(tt.ptr)) else null,
+            if (table_type) |tt| @intCast(c.SQLSMALLINT, tt.len) else 0,
         );
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
