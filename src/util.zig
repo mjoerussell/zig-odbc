@@ -27,7 +27,7 @@ pub fn Bitmask(comptime BackingType: type, comptime fields: anytype) type {
         /// with the appropriate fields set to "true" based on the input value.
         pub fn applyBitmask(value: BackingType) callconv(.Inline) Result {
             var result = Result{};
-            inline for (fields) |field, i| {
+            inline for (fields) |field| {
                 if (value & field[1] == field[1]) {
                     @field(result, field[0]) = true;
                 }

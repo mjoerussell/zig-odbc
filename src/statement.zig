@@ -264,7 +264,7 @@ pub const Statement = struct {
         
         const result = c.SQLDescribeParam(
             self.handle, 
-            column_number, 
+            parameter_number, 
             @ptrCast(*odbc.SQLSMALLINT, &param_desc.data_type), 
             &param_desc.size, 
             &param_desc.decimal_digits, 

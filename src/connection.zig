@@ -195,7 +195,7 @@ pub const Connection = struct {
                 else => {
                     var error_buffer: [@sizeOf(odbc_error.SqlState) * 3]u8 = undefined;
                     var fba = std.heap.FixedBufferAllocator.init(error_buffer);
-                    const errors = self.getErrors(&fba.allocator) catch |_| return error.Error;
+                    const errors = self.getErrors(&fba.allocator) catch return error.Error;
                     for (errors) |e| {
                         if (e == .StringRightTrunc) {
                             // If the out string was truncated, realloc the correct length and run again
@@ -260,7 +260,7 @@ pub const Connection = struct {
                     // for the string and try again. If it was anything else, just return ReturnError.Error.
                     var error_buffer: [@sizeOf(odbc_error.SqlState) * 5]u8 = undefined;
                     var fba = std.heap.FixedBufferAllocator.init(error_buffer[0..]);
-                    const errors = self.getErrors(&fba.allocator) catch |_| return ReturnError.Error;
+                    const errors = self.getErrors(&fba.allocator) catch return ReturnError.Error;
                     for (errors) |err| {
                         if (err == .StringRightTrunc) {
                             value = try self.allocator.realloc(value, @intCast(usize, attribute_str_len) + 1);

@@ -1539,7 +1539,7 @@ pub const CType = enum(odbc.SQLSMALLINT) {
 
 };
 
-pub const SqlType = extern enum(odbc.SQLSMALLINT) {
+pub const SqlType = enum(odbc.SQLSMALLINT) {
     Char = odbc.SQL_CHAR,
     Varchar = odbc.SQL_VARCHAR,
     LongVarchar = odbc.SQL_LONGVARCHAR,
@@ -1647,7 +1647,6 @@ pub const StatementAttribute = enum(i32) {
     AppParamDescription = odbc.SQL_ATTR_APP_PARAM_DESC,
     AppRowDescription = odbc.SQL_ATTR_APP_ROW_DESC,
     EnableAsync = odbc.SQL_ATTR_ASYNC_ENABLE,
-    AsyncStatementEvent = odbc.SQL_ATTR_ASYNC_STMT_EVENT,
     Concurrency = odbc.SQL_ATTR_CONCURRENCY,
     CursorScrollable = odbc.SQL_ATTR_CURSOR_SCROLLABLE,
     CursorSensitivity = odbc.SQL_ATTR_CURSOR_SENSITIVITY,
@@ -1685,7 +1684,6 @@ pub const StatementAttribute = enum(i32) {
             .AppParamDescription => .{ .AppParamDescription = @intToPtr(*c_void, value) },
             .AppRowDescription => .{ .AppRowDescription = @intToPtr(*c_void, value) },
             .EnableAsync => .{ .EnableAsync = value == odbc.SQL_ASYNC_ENABLE_ON },
-            .AsyncStatementEvent => .{ .AsyncStatementEvent = @intToPtr(*c_void, value) },
             .Concurrency => .{ .Concurrency = @intToEnum(StatementAttributeValue.Concurrency, value) },
             .CursorScrollable => .{ .CursorScrollable = value == odbc.SQL_SCROLLABLE },
             .CursorSensitivity => .{ .CursorSensitivity = @intToEnum(StatementAttributeValue.CursorSensitivity, value) },
@@ -1725,7 +1723,6 @@ pub const StatementAttributeValue = union(StatementAttribute) {
     AppParamDescription: *c_void,
     AppRowDescription: *c_void,
     EnableAsync: bool,
-    AsyncStatementEvent: *c_void, // @todo This is an event handle - probably more appropriate to use a function pointer
     Concurrency: Concurrency,
     CursorScrollable: bool,
     CursorSensitivity: CursorSensitivity,
@@ -1819,7 +1816,6 @@ pub const StatementAttributeValue = union(StatementAttribute) {
                 const value: usize = if (v) odbc.SQL_ASYNC_ENABLE_ON else odbc.SQL_ASYNC_ENABLE_OFF;
                 break :blk toBytes(value)[0..];
             },
-            .AsyncStatementEvent => |v| toBytes(@ptrToInt(v))[0..],
             .Concurrency => |v| toBytes(@enumToInt(v))[0..],
             .CursorScrollable => |v| blk: {
                 const value: usize = if (v) odbc.SQL_SCROLLABLE else odbc.SQL_NONSCROLLABLE;
@@ -1883,8 +1879,6 @@ pub const InputOutputType = enum(odbc.SQLSMALLINT) {
     Input = odbc.SQL_PARAM_INPUT,
     InputOutput = odbc.SQL_PARAM_INPUT_OUTPUT,
     Output = odbc.SQL_PARAM_OUTPUT,
-    InputOutputStream = odbc.SQL_PARAM_INPUT_OUTPUT_STREAM,
-    OutputStream = odbc.SQL_PARAM_OUTPUT_STREAM,
 };
 
 pub const BulkOperation = enum(odbc.SQLUSMALLINT) {
