@@ -87,12 +87,7 @@ pub const Statement = struct {
     /// * decimal_digits: The number of digits to use for floating point numbers. `null` for other data types.
     /// * str_len_or_ind_ptr: A pointer to a value describing the parameter's length.
     // pub fn bindParameter(self: *Statement, parameter_number: u16, io_type: odbc.InputOutputType, comptime value_type: odbc.CType, parameter_type: odbc.SqlType, value: *value_type.toType(), decimal_digits: ?u16, str_len_or_ind_ptr: *c.SQLLEN) ReturnError!void {
-    pub fn bindParameter(self: *Statement, parameter_number: u16, io_type: odbc.InputOutputType, value_type: odbc.CType, parameter_type: odbc.SqlType, value: anytype, decimal_digits: ?u16, str_len_or_ind_ptr: *c.SQLLEN) !void {
-        const ValueInfo = @typeInfo(@TypeOf(value));
-        comptime if (std.meta.activeTag(ValueInfo) != .Pointer) {
-            @compileError("Expected parameter \"value\" to be a pointer");
-        };
-        
+    pub fn bindParameter(self: *Statement, parameter_number: u16, io_type: odbc.InputOutputType, value_type: odbc.CType, parameter_type: odbc.SqlType, value: *c_void, decimal_digits: ?u16, str_len_or_ind_ptr: *c.SQLLEN) !void {
         const result = c.SQLBindParameter(
             self.handle, 
             parameter_number, 
@@ -101,7 +96,7 @@ pub const Statement = struct {
             @enumToInt(parameter_type), 
             @sizeOf(@TypeOf(value)),
             @intCast(c.SQLSMALLINT, decimal_digits orelse 0),
-            @ptrCast(*c_void, value), 
+            value, 
             @sizeOf(@TypeOf(value)),
             str_len_or_ind_ptr
         );

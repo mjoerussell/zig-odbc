@@ -16,11 +16,7 @@ else
     });
 
 const extra_decls = if (builtin.os.tag == .windows)
-    struct {
-        pub const SQL_OV_ODBC3_80 = 380;
-        pub const SQL_CP_DRIVER_AWARE = 3;
-        pub const SQL_PARAM_DATA_AVAILABLE = 101;
-    }
+    struct {}
 else
     struct {
         pub const SQL_CP_DRIVER_AWARE = 3;
