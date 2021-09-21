@@ -10,19 +10,15 @@ const odbc_error = @import("error.zig");
 const ReturnError = odbc_error.ReturnError;
 const OdbcError = odbc_error.OdbcError;
 
-// @todo SQLEndTran for end transaction
+// @todo persistent FixedBufferAllocator for errors?
 pub const Environment = struct {
     pub const Attribute = odbc.EnvironmentAttribute;
     pub const AttributeValue = odbc.EnvironmentAttributeValue;
 
     handle: *c_void,
 
-    // @todo persistent FixedBufferAllocator for errors?
-    allocator: *Allocator,
-
-    pub fn init(allocator: *Allocator) ReturnError!Environment {
+    pub fn init() ReturnError!Environment {
         var result: Environment = undefined;
-        result.allocator = allocator;
         const alloc_result = c.SQLAllocHandle(@enumToInt(HandleType.Environment), null, @ptrCast([*c]?*c_void, &result.handle));
         return switch (@intToEnum(SqlReturn, alloc_result)) {
             .InvalidHandle => @panic("Environment init passed invalid handle type"), 
@@ -43,9 +39,9 @@ pub const Environment = struct {
         };
     }
 
-    pub fn getDataSource(self: *Environment, direction: odbc.Direction) !?odbc.DataSource {
-        var server_name_buf = try self.allocator.alloc(u8, 100);
-        var description_buf = try self.allocator.alloc(u8, 100);
+    pub fn getDataSource(self: *Environment, allocator: *Allocator, direction: odbc.Direction) !?odbc.DataSource {
+        var server_name_buf = try allocator.alloc(u8, 100);
+        var description_buf = try allocator.alloc(u8, 100);
         var server_name_len: i16 = 0;
         var description_len: i16 = 0;
 
@@ -60,8 +56,8 @@ pub const Environment = struct {
                     const errors = try self.getErrors();
                     for (errors) |err| {
                         if (err == .StringRightTrunc) {
-                            server_name_buf = try self.allocator.resize(server_name_buf, @intCast(usize, server_name_len + 1));
-                            description_buf = try self.allocator.resize(description_buf, @intCast(usize, description_len + 1));
+                            server_name_buf = try allocator.resize(server_name_buf, @intCast(usize, server_name_len + 1));
+                            description_buf = try allocator.resize(description_buf, @intCast(usize, description_len + 1));
                             continue :run_loop;
                         }
                     }
@@ -73,9 +69,9 @@ pub const Environment = struct {
         }
     }
 
-    pub fn getDriver(self: *Environment, direction: odbc.Direction) !?odbc.Driver {
-        var description_buf = try self.allocator.alloc(u8, 100);
-        var attribute_buf = try self.allocator.alloc(u8, 100);
+    pub fn getDriver(self: *Environment, allocator: *Allocator, direction: odbc.Direction) !?odbc.Driver {
+        var description_buf = try allocator.alloc(u8, 100);
+        var attribute_buf = try allocator.alloc(u8, 100);
         var description_len: i16 = 0;
         var attributes_len: i16 = 0;
         
@@ -91,8 +87,8 @@ pub const Environment = struct {
                     const errors = try self.getErrors();
                     for (errors) |err| {
                         if (err == .StringRightTrunc) {
-                            description_buf = try self.allocator.resize(description_buf, @intCast(usize, description_len + 1));
-                            attribute_buf = try self.allocator.resize(attribute_buf, @intCast(usize, attributes_len + 1));
+                            description_buf = try allocator.resize(description_buf, @intCast(usize, description_len + 1));
+                            attribute_buf = try allocator.resize(attribute_buf, @intCast(usize, attributes_len + 1));
                             continue :run_loop;
                         }
                     }
@@ -104,14 +100,11 @@ pub const Environment = struct {
 
     }
 
-    pub fn getAllDrivers(self: *Environment) ![]odbc.Driver {
-        var driver_list = std.ArrayList(odbc.Driver).init(self.allocator);
+    pub fn getAllDrivers(self: *Environment, allocator: *Allocator) ![]odbc.Driver {
+        var driver_list = std.ArrayList(odbc.Driver).init(allocator);
         var direction: odbc.Direction = .FetchFirst;
         while (true) {
-            const driver = self.getDriver(direction) catch |err| {
-                std.debug.print("Driver error: {s}\n", .{@errorName(err)});
-                break;
-            };
+            const driver = self.getDriver(allocator, direction) catch break;
             if (driver) |d| {
                 try driver_list.append(d);
                 direction = .FetchNext;
@@ -149,12 +142,12 @@ pub const Environment = struct {
         return attr.OdbcVersion;
     }
 
-    pub fn getErrors(self: *Environment) ![]odbc_error.SqlState {
-        return try odbc_error.getErrors(self.allocator, HandleType.Environment, self.handle);
+    pub fn getErrors(self: *Environment, allocator: *Allocator) ![]odbc_error.SqlState {
+        return try odbc_error.getErrors(allocator, HandleType.Environment, self.handle);
     }
 
-    pub fn getDiagnosticRecords(self: *Environment) ![]DiagnosticRecord {
-        return try odbc_error.getDiagnosticRecords(self.allocator, HandleType.Environment, self.handle);
+    pub fn getDiagnosticRecords(self: *Environment, allocator: *Allocator) ![]odbc_error.DiagnosticRecord {
+        return try odbc_error.getDiagnosticRecords(allocator, HandleType.Environment, self.handle);
     }
 
 };
