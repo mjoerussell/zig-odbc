@@ -50,7 +50,7 @@ pub const Statement = struct {
     /// * target_type - The C data type of the buffer.
     /// * target_buffer - The buffer that data will be put into. 
     /// * str_len_or_ind_ptr - An indicator value that will later be used to determine the length of data put into `target_buffer`.
-    pub fn bindColumn(self: *Statement, column_number: u16, target_type: odbc.CType, target_buffer: anytype, str_len_or_ind_ptr: *c_longlong) !void {
+    pub fn bindColumn(self: *Statement, column_number: u16, target_type: odbc.CType, target_buffer: anytype, str_len_or_ind_ptr: [*]c_longlong, column_size: ?usize) !void {
         const BufferInfo = @typeInfo(@TypeOf(target_buffer));
         comptime {
             switch (BufferInfo) {
@@ -67,7 +67,7 @@ pub const Statement = struct {
             column_number, 
             @enumToInt(target_type), 
             @ptrCast(*c_void, target_buffer.ptr), 
-            @intCast(c_longlong, target_buffer.len * @sizeOf(BufferInfo.Pointer.child)), 
+            @intCast(c_longlong, column_size orelse target_buffer.len * @sizeOf(BufferInfo.Pointer.child)), 
             str_len_or_ind_ptr
         );
         return switch (@intToEnum(SqlReturn, result)) {
