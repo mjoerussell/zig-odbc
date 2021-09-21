@@ -150,8 +150,6 @@ pub const EnvironmentAttributeValue = union(EnvironmentAttribute) {
 
 pub const ConnectionAttribute = enum(i32) {
     AccessMode = odbc.SQL_ATTR_ACCESS_MODE,
-    AsyncConnectEvent = odbc.SQL_ATTR_ASYNC_DBC_EVENT,
-    EnableAsyncConnectFunctions = odbc.SQL_ATTR_ASYNC_DBC_FUNCTIONS_ENABLE,
     EnableAsync = odbc.SQL_ATTR_ASYNC_ENABLE,
     AutoIpd = odbc.SQL_ATTR_AUTO_IPD,
     Autocommit = odbc.SQL_ATTR_AUTOCOMMIT,
@@ -198,8 +196,6 @@ pub const ConnectionAttribute = enum(i32) {
 
 pub const ConnectionAttributeValue = union(ConnectionAttribute) {
     AccessMode: AccessMode,
-    AsyncConnectEvent: odbc.SQLPOINTER,
-    EnableAsyncConnectFunctions: bool,
     EnableAsync: bool,
     AutoIpd: bool,
     Autocommit: bool,
@@ -232,8 +228,6 @@ pub const ConnectionAttributeValue = union(ConnectionAttribute) {
     pub fn getValue(self: ConnectionAttributeValue, allocator: *std.mem.Allocator) ![]u8 {
         const value_buffer: []u8 = switch (self) {
             .AccessMode => |v| toBytes(@enumToInt(v))[0..],
-            .AsyncConnectEvent => |v| toBytes(@ptrToInt(v))[0..],
-            .EnableAsyncConnectFunctions => |v| if (v) toBytes(@as(u32, odbc.SQL_ASYNC_DBC_ENABLE_ON))[0..] else toBytes(@as(u32, odbc.SQL_ASYNC_DBC_ENABLE_OFF))[0..],  
             .EnableAsync => |v| if (v) toBytes(@as(usize, odbc.SQL_ASYNC_ENABLE_ON))[0..] else toBytes(@as(usize, odbc.SQL_ASYNC_ENABLE_OFF))[0..],
             .AutoIpd => |v| if (v) toBytes(@as(u32, odbc.SQL_TRUE))[0..] else toBytes(@as(u32, odbc.SQL_FALSE))[0..],
             .Autocommit => |v| blk: {
