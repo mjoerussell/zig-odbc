@@ -12,7 +12,6 @@ const HandleType = odbc.HandleType;
 const odbc_error = @import("error.zig");
 const ReturnError = odbc_error.ReturnError;
 
-// @todo SQLEndTran for end transaction
 pub const Connection = struct {
     pub const Attribute = odbc.ConnectionAttribute;
     pub const AttributeValue = odbc.ConnectionAttributeValue;
