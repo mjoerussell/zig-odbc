@@ -146,7 +146,7 @@ pub const Environment = struct {
         return try odbc_error.getErrors(allocator, HandleType.Environment, self.handle);
     }
 
-    pub fn getDiagnosticRecords(self: *Environment, allocator: *Allocator) ![]DiagnosticRecord {
+    pub fn getDiagnosticRecords(self: *Environment, allocator: *Allocator) ![]odbc_error.DiagnosticRecord {
         return try odbc_error.getDiagnosticRecords(allocator, HandleType.Environment, self.handle);
     }
 
