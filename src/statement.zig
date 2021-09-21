@@ -19,12 +19,10 @@ pub const Statement = struct {
     pub const AttributeValue = odbc.StatementAttributeValue;
 
     handle: *c_void,
-    allocator: *Allocator,
 
     /// Allocate a new statement handle, using the provided connection as the parent.
-    pub fn init(connection: Connection, allocator: *Allocator) ReturnError!Statement {
+    pub fn init(connection: Connection) ReturnError!Statement {
         var result: Statement = undefined;
-        result.allocator = allocator;
         const alloc_result = c.SQLAllocHandle(@enumToInt(odbc.HandleType.Statement), connection.handle, @ptrCast([*c]?*c_void, &result.handle));
         return switch (@intToEnum(SqlReturn, alloc_result)) {
             .Success, .SuccessWithInfo => result,
@@ -164,13 +162,13 @@ pub const Statement = struct {
         };
     }
 
-    pub fn getColumnAttribute(self: *Statement, column_number: usize, comptime attr: odbc.ColumnAttribute) !odbc.ColumnAttributeValue {
+    pub fn getColumnAttribute(self: *Statement, allocator: *Allocator, column_number: usize, comptime attr: odbc.ColumnAttribute) !odbc.ColumnAttributeValue {
         var string_attr_length: c_short = 0;
         // First call to get the length of the string required to hold the string attribute value, if applicable
         _ = c.SQLColAttribute(self.handle, @intCast(c_ushort, column_number), @enumToInt(attr), null, 0, &string_attr_length, null);
 
-        var string_attr: [:0]u8 = try self.allocator.allocSentinel(u8, @intCast(usize, string_attr_length), 0);
-        errdefer self.allocator.free(string_attr);
+        var string_attr: [:0]u8 = try allocator.allocSentinel(u8, @intCast(usize, string_attr_length), 0);
+        errdefer allocator.free(string_attr);
 
         var numeric_attribute: c_longlong = 0;
         const result = c.SQLColAttribute(
@@ -184,7 +182,7 @@ pub const Statement = struct {
         );
 
         if (string_attr_length == 0) {
-            self.allocator.free(string_attr);
+            allocator.free(string_attr);
         }
 
         switch (@intToEnum(SqlReturn, result)) {
@@ -226,13 +224,13 @@ pub const Statement = struct {
         }
     }
 
-    pub fn describeColumn(self: *Statement, column_number: c_ushort) !odbc.ColumnDescriptor {
+    pub fn describeColumn(self: *Statement, allocator: *Allocator, column_number: c_ushort) !odbc.ColumnDescriptor {
         var column_desc: odbc.ColumnDescriptor = undefined;
         
         var name_length: c_short = 0;
         _ = c.SQLDescribeCol(self.handle, column_number, null, 0, &name_length, null, null, null, null);
 
-        column_desc.name = try self.allocator.allocSentinel(u8, name_length, 0);
+        column_desc.name = try allocator.allocSentinel(u8, name_length, 0);
 
         const result = c.SQLDescribeCol(
             self.handle, 
@@ -372,11 +370,11 @@ pub const Statement = struct {
         };
     }
 
-    pub fn getCursorName(self: *Statement) ![]const u8 {
+    pub fn getCursorName(self: *Statement, allocator: *Allocator) ![]const u8 {
         var name_length: c_short = 0;
         _ = c.SQLGetCursorName(self.handle, null, 0, &name_length);
 
-        var name_buffer = try self.allocator.allocSentinel(u8, name_length, 0);
+        var name_buffer = try allocator.allocSentinel(u8, name_length, 0);
         const result = c.SQLGetCursorName(self.handle, name_buffer.ptr, @intCast(c_short, name_buffer.len), &name_length);
 
         return switch (@intToEnum(SqlReturn, result)) {
@@ -386,8 +384,8 @@ pub const Statement = struct {
         };
     }
 
-    pub fn getData(self: *Statement, column_number: usize, comptime target_type: odbc.CType) !?target_type.toType() {
-        var result_data = try std.ArrayList(u8).initCapacity(500);
+    pub fn getData(self: *Statement, allocator: *Allocator, column_number: usize, comptime target_type: odbc.CType) !?target_type.toType() {
+        var result_data = try std.ArrayList(u8).initCapacity(allocator, 500);
         errdefer result_data.deinit();
 
         var target_buffer: [500]u8 = undefined;
@@ -424,7 +422,7 @@ pub const Statement = struct {
                                 // Success
                             }
                             const data = result_data.toOwnedSlice();
-                            defer if (!target_type.isSlice()) self.allocator.free(data);
+                            defer if (!target_type.isSlice()) allocator.free(data);
 
                             return std.mem.bytesToValue(target_type.toType(), data);
                         }
@@ -692,12 +690,12 @@ pub const Statement = struct {
         return try self.tables("", "", "", c.SQL_ALL_TABLE_TYPES);
     }
 
-    pub fn getErrors(self: *Statement, allocator: *Allocator) callconv(.Inline) ![]odbc_error.SqlState {
+    pub fn getErrors(self: *Statement, allocator: *Allocator) ![]odbc_error.SqlState {
         return try odbc_error.getErrors(allocator, odbc.HandleType.Statement, self.handle);
     }
 
-    pub fn getDiagnosticRecords(self: *Statement) callconv(.Inline) ![]odbc_error.DiagnosticRecord {
-        return try odbc_error.getDiagnosticRecords(self.allocator, odbc.HandleType.Statement, self.handle);
+    pub fn getDiagnosticRecords(self: *Statement, allocator: *Allocator) ![]odbc_error.DiagnosticRecord {
+        return try odbc_error.getDiagnosticRecords(allocator, odbc.HandleType.Statement, self.handle);
     }
 
 };
