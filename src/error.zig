@@ -7,25 +7,6 @@ const odbc = @import("types.zig");
 /// SQLRETURN value.
 pub const ReturnError = error{Error, NoData, InvalidHandle, StillExecuting};
 
-fn StringEnum(comptime E: type, comptime str_map: anytype) type {
-    return struct {
-        pub const Enum = E;
-
-        pub fn fromString(str: []const u8) error{Invalid}!E {
-            return inline for (str_map) |mapping| {
-                if (std.mem.eql(u8, mapping[0], str)) break mapping[1];
-            } else error.Invalid;
-        }
-
-        pub fn toString(enum_val: E) []const u8 {
-            inline for (str_map) |mapping| {
-                if (mapping[1] == enum_val) return mapping[0];
-            }
-            unreachable;
-        }
-    };
-}
-
 pub const SqlState = enum {
     Success,
     GeneralWarning,
@@ -177,7 +158,7 @@ fn EnumError(comptime E: type) type {
     }
 }
 
-pub const OdbcError = StringEnum(SqlState, .{
+pub const odbc_error_map = std.ComptimeStringMap(SqlState, .{
     .{"00000", .Success},
     .{"01000", .GeneralWarning},
     .{"01001", .CursorOperationConflict},
@@ -349,7 +330,6 @@ pub fn getLastError(handle_type: odbc.HandleType, handle: *c_void) LastError {
     var num_records: u64 = 0;
     _ = c.SQLGetDiagField(@enumToInt(handle_type), handle, 0, @enumToInt(odbc.DiagnosticIdentifier.Number), &num_records, 0, null);
 
-    // if (num_records == 0) return null;
     if (num_records == 0) return error.NoError;
 
     var sql_state: [5:0]u8 = undefined;
@@ -357,8 +337,7 @@ pub fn getLastError(handle_type: odbc.HandleType, handle: *c_void) LastError {
     const result = c.SQLGetDiagRec(@enumToInt(handle_type), handle, 1, sql_state[0..], null, null, 0, null);
     switch (@intToEnum(odbc.SqlReturn, result)) {
         .Success, .SuccessWithInfo => {
-            // const error_state = OdbcError.fromString(&sql_state) catch return null;
-            const error_state = OdbcError.fromString(&sql_state) catch return SqlStateError.GeneralError;
+            const error_state = odbc_error_map.get(sql_state[0..]) orelse .GeneralError;
             return error_state.toError();
         },
         // else => return null,
@@ -378,7 +357,7 @@ pub fn getErrors(allocator: *Allocator, handle_type: odbc.HandleType, handle: *c
         var sql_state: [5:0]u8 = undefined;
         const result = c.SQLGetDiagRec(@enumToInt(handle_type), handle, record_index, sql_state[0..], null, null, 0, null);
         switch (@intToEnum(odbc.SqlReturn, result)) {
-            .Success, .SuccessWithInfo => errors[@intCast(usize, record_index - 1)] = try OdbcError.fromString(&sql_state),
+            .Success, .SuccessWithInfo => errors[@intCast(usize, record_index - 1)] = odbc_error_map.get(sql_state[0..]) orelse .GeneralError,
             .InvalidHandle => return error.InvalidHandle,
             else => break
         }
