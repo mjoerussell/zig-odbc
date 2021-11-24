@@ -13,6 +13,9 @@ const SqlReturn = odbc.SqlReturn;
 const odbc_error = @import("error.zig");
 const SqlState = odbc_error.SqlState;
 const ReturnError = odbc_error.ReturnError;
+const LastError = odbc_error.LastError;
+
+pub const StatementInitError = LastError||error{InvalidHandle};
 
 pub const Statement = struct {
     pub const Attribute = odbc.StatementAttribute;
@@ -21,24 +24,24 @@ pub const Statement = struct {
     handle: *c_void,
 
     /// Allocate a new statement handle, using the provided connection as the parent.
-    pub fn init(connection: Connection) ReturnError!Statement {
+    pub fn init(connection: Connection) StatementInitError!Statement {
         var result: Statement = undefined;
         const alloc_result = c.SQLAllocHandle(@enumToInt(odbc.HandleType.Statement), connection.handle, @ptrCast([*c]?*c_void, &result.handle));
         return switch (@intToEnum(SqlReturn, alloc_result)) {
             .Success, .SuccessWithInfo => result,
-            .InvalidHandle => ReturnError.InvalidHandle,
-            else => ReturnError.Error
+            .InvalidHandle => StatementInitError.InvalidHandle,
+            else => connection.getLastError(),
         };
     }
 
     /// Free this statement handle. If this is successful then the statement object becomes invalidated and
     /// should no longer be used.
-    pub fn deinit(self: *Statement) !void {
+    pub fn deinit(self: *Statement) LastError!void {
         const result = c.SQLFreeHandle(@enumToInt(odbc.HandleType.Statement), self.handle);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success => {},
             .InvalidHandle => @panic("Statement.deinit passed invalid handle"), 
-            else => ReturnError.Error
+            else => self.getLastError(),
         };
     }
 
@@ -48,7 +51,14 @@ pub const Statement = struct {
     /// * target_type - The C data type of the buffer.
     /// * target_buffer - The buffer that data will be put into. 
     /// * str_len_or_ind_ptr - An indicator value that will later be used to determine the length of data put into `target_buffer`.
-    pub fn bindColumn(self: *Statement, column_number: u16, target_type: odbc.CType, target_buffer: anytype, str_len_or_ind_ptr: [*]c_longlong, column_size: ?usize) !void {
+    pub fn bindColumn(
+        self: *Statement, 
+        column_number: u16, 
+        target_type: odbc.CType, 
+        target_buffer: anytype, 
+        str_len_or_ind_ptr: [*]c_longlong, 
+        column_size: ?usize
+    ) LastError!void {
         const BufferInfo = @typeInfo(@TypeOf(target_buffer));
         comptime {
             switch (BufferInfo) {
@@ -71,7 +81,7 @@ pub const Statement = struct {
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.bindColumn passed invalid handle"),
-            else => ReturnError.Error
+            else => self.getLastError(),
         };
     }
 
@@ -85,7 +95,16 @@ pub const Statement = struct {
     /// * decimal_digits: The number of digits to use for floating point numbers. `null` for other data types.
     /// * str_len_or_ind_ptr: A pointer to a value describing the parameter's length.
     // pub fn bindParameter(self: *Statement, parameter_number: u16, io_type: odbc.InputOutputType, comptime value_type: odbc.CType, parameter_type: odbc.SqlType, value: *value_type.toType(), decimal_digits: ?u16, str_len_or_ind_ptr: *c.SQLLEN) ReturnError!void {
-    pub fn bindParameter(self: *Statement, parameter_number: u16, io_type: odbc.InputOutputType, value_type: odbc.CType, parameter_type: odbc.SqlType, value: *c_void, decimal_digits: ?u16, str_len_or_ind_ptr: *c.SQLLEN) !void {
+    pub fn bindParameter(
+        self: *Statement, 
+        parameter_number: u16, 
+        io_type: odbc.InputOutputType, 
+        value_type: odbc.CType, 
+        parameter_type: odbc.SqlType, 
+        value: *c_void, 
+        decimal_digits: ?u16, 
+        str_len_or_ind_ptr: *c.SQLLEN
+    ) LastError!void {
         const result = c.SQLBindParameter(
             self.handle, 
             parameter_number, 
@@ -101,48 +120,48 @@ pub const Statement = struct {
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.bindParameter passed invalid handle"),
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
-    pub fn bulkOperations(self: *Statement, operation: odbc.BulkOperation) ReturnError!SqlReturn {
+    pub fn bulkOperations(self: *Statement, operation: odbc.BulkOperation) LastError!void {
         const result = c.SQLBulkOperations(self.handle, @enumToInt(operation));
         return switch (@intToEnum(SqlReturn, result)) {
+            .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.bulkOperations passed invalid handle"),
-            .Error => error.Error,
-            else => @intToEnum(SqlReturn, result)
+            else => self.getLastError(),
         };
     }
 
-    pub fn cancel(self: *Statement) ReturnError!void {
+    pub fn cancel(self: *Statement) LastError!void {
         const result = c.SQLCancel(self.handle);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.cancel passed invalid handle"),
-            else => error.Error,
+            else => self.getLastError(),
         };
     }
 
-    pub fn closeCursor(self: *Statement) ReturnError!void {
+    pub fn closeCursor(self: *Statement) LastError!void {
         const result = c.SQLCloseCursor(self.handle);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.closeCursor passed invalid handle"),
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
-    pub fn columnPrivileges(self: *Statement, catalog_name: []const u8, schema_name: []const u8, table_name: []const u8, column_name: []const u8) ReturnError!void {
+    pub fn columnPrivileges(self: *Statement, catalog_name: []const u8, schema_name: []const u8, table_name: []const u8, column_name: []const u8) !void {
         const result = c.SQLColumnPrivileges(self.handle, catalog_name.ptr, @intCast(u16, catalog_name.len), schema_name.ptr, @intCast(u16, schema_name.len), table_name.ptr, @intCast(u16, table_name.len), column_name.ptr, @intCast(u16, column_name.len));
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.columnPrivileges returned invalid handle"),
             .StillExecuting => error.StillExecuting,
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
-    pub fn columns(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, table_name: []const u8, column_name: ?[]const u8) ReturnError!void {
+    pub fn columns(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, table_name: []const u8, column_name: ?[]const u8) !void {
         const result = c.SQLColumns(
             self.handle, 
             if (catalog_name) |cn| @intToPtr([*c]u8, @ptrToInt(cn.ptr)) else null, 
@@ -158,7 +177,7 @@ pub const Statement = struct {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.columns passed invalid handle"),
             .StillExecuting => error.StillExecuting,
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
@@ -278,56 +297,56 @@ pub const Statement = struct {
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.prepare passed invalid handle"),
-            else => ReturnError.Error
+            else => self.getLastError(),
         };
     }
 
     /// Execute a prepared SQL statement.
-    pub fn execute(self: *Statement) ReturnError!SqlReturn {
+    pub fn execute(self: *Statement) odbc_error.LastError!void {
         const result = c.SQLExecute(self.handle);
         return switch (@intToEnum(SqlReturn, result)) {
+            .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.execute passed invalid handle"),
-            .Error => error.Error,
-            else => @intToEnum(SqlReturn, result),
+            else => self.getLastError(),
         };
     }
 
     /// Execute a SQL statement directly. This is the fastest way to execute a SQL statement once.
-    pub fn executeDirect(self: *Statement, statement_text: []const u8) ReturnError!SqlReturn {
+    pub fn executeDirect(self: *Statement, statement_text: []const u8) !void {
         const result = c.SQLExecDirect(self.handle, @intToPtr([*c]u8, @ptrToInt(statement_text.ptr)), @intCast(c.SQLINTEGER, statement_text.len));
         return switch (@intToEnum(SqlReturn, result)) {
+            .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.executeDirect passed invalid handle"),
-            .Error => ReturnError.Error,
-            else => @intToEnum(SqlReturn, result)
+            else => self.getLastError(),
         };
     }
 
     /// Fetch the next rowset of data from the result set and return data in all bound columns.
-    pub fn fetch(self: *Statement) ReturnError!void {
+    pub fn fetch(self: *Statement) !bool {
         const result = c.SQLFetch(self.handle);
         return switch (@intToEnum(SqlReturn, result)) {
-            .Success, .SuccessWithInfo => {},
+            .Success, .SuccessWithInfo => true,
             .InvalidHandle => @panic("Statement.fetch passed invalid handle"),
             .StillExecuting => ReturnError.StillExecuting,
-            .NoData => ReturnError.NoData,
-            else => ReturnError.Error
+            .NoData => false,
+            else => self.getLastError(),
         };
     }
 
     /// Fetch a specified rowset of data from the result set and return data in all bound columns. Rowsets
     /// can be specified at an absolute position, relative position, or by bookmark.
-    pub fn fetchScroll(self: *Statement, orientation: odbc.FetchOrientation, offset: usize) ReturnError!void {
+    pub fn fetchScroll(self: *Statement, orientation: odbc.FetchOrientation, offset: usize) !bool {
         const result = c.SQLFetchScroll(self.handle, @enumToInt(orientation), @intCast(c_longlong, offset));
         return switch (@intToEnum(SqlReturn, result)) {
-            .Success, .SuccessWithInfo => {},
+            .Success, .SuccessWithInfo => true,
             .InvalidHandle => @panic("Statement.fetchScroll passed invalid handle"),
             .StillExecuting => ReturnError.StillExecuting,
-            .NoData => ReturnError.NoData,
-            else => ReturnError.Error,
+            .NoData => false,
+            else => self.getLastError(),
         };
     }
 
-    pub fn primaryKeys(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, table_name: []const u8) ReturnError!void {
+    pub fn primaryKeys(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, table_name: []const u8) !void {
         const result = c.SQLPrimaryKeys(
             self.handle,
             if (catalog_name) |cn| cn.ptr else null,
@@ -341,11 +360,19 @@ pub const Statement = struct {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.primaryKeys passed invalid handle"),
             .StillExecuting => error.StillExecuting,
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
-    pub fn foreignKeys(self: *Statement, pk_catalog_name: ?[]const u8, pk_schema_name: ?[]const u8, pk_table_name: ?[]const u8, fk_catalog_name: ?[]const u8, fk_schema_name: ?[]const u8, fk_table_name: ?[]const u8) ReturnError!void {
+    pub fn foreignKeys(
+        self: *Statement, 
+        pk_catalog_name: ?[]const u8, 
+        pk_schema_name: ?[]const u8, 
+        pk_table_name: ?[]const u8, 
+        fk_catalog_name: ?[]const u8, 
+        fk_schema_name: ?[]const u8, 
+        fk_table_name: ?[]const u8
+    ) !void {
         const result = c.SQLForeignKeys(
             self.handle,
             if (pk_catalog_name) |cn| cn.ptr else null,
@@ -366,7 +393,7 @@ pub const Statement = struct {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.foreignKeys passed invalid handle"),
             .StillExecuting => ReturnError.StillExecuting,
-            else => ReturnError.Error
+            else => self.getLastError(),
         };
     }
 
@@ -375,12 +402,14 @@ pub const Statement = struct {
         _ = c.SQLGetCursorName(self.handle, null, 0, &name_length);
 
         var name_buffer = try allocator.allocSentinel(u8, name_length, 0);
+        errdefer allocator.free(name_buffer);
+
         const result = c.SQLGetCursorName(self.handle, name_buffer.ptr, @intCast(c_short, name_buffer.len), &name_length);
 
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => name_buffer,
             .InvalidHandle => @panic("Statement.getCursorName passed invalid handle"),
-            else => ReturnError.Error,
+            else => self.getLastError(),
         };
     }
 
@@ -430,7 +459,7 @@ pub const Statement = struct {
                 },
                 .InvalidHandle => @panic("Statement.getData passed invalid handle"),
                 .StillExecuting => return ReturnError.StillExecuting,
-                else => return ReturnError.Error,
+                else => return self.getLastError(),
             }
         }
     }
@@ -442,7 +471,7 @@ pub const Statement = struct {
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => attr.getValue(result_buffer[0..]),
             .InvalidHandle => @panic("Statement.getAttribute passed invalid handle"),
-            else => ReturnError.Error,
+            else => self.getLastError(),
         };
     }
 
@@ -466,62 +495,63 @@ pub const Statement = struct {
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.setAttribute passed invalid handle"),
-            else => ReturnError.Error
+            else => self.getLastError(),
         };
     }
 
-    pub fn getTypeInfo(self: *Statement, data_type: odbc.SqlType) ReturnError!void {
+    pub fn getTypeInfo(self: *Statement, data_type: odbc.SqlType) !void {
         const result = c.SQLGetTypeInfo(self.handle, @enumToInt(data_type));
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.getTypeInfo passed invalid handle"),
             .StillExecuting => error.StillExecuting,
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
-    pub fn moreResults(self: *Statement) ReturnError!SqlReturn {
+    pub fn moreResults(self: *Statement) !void {
         const result = c.SQLMoreResults(self.handle);
         return switch (@intToEnum(SqlReturn, result)) {
+            .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.moreResults passed invalid handle"),
-            .Error => error.Error,
-            else => @intToEnum(SqlReturn, result)
+            else => self.getLastError(),
         };
     }
 
-    pub fn numParams(self: *Statement) ReturnError!usize {
+    pub fn numParams(self: *Statement) !usize {
         var num_params: c.SQLSMALLINT = 0;
         const result = c.SQLNumParams(self.handle, &num_params);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => @intCast(usize, num_params),
             .InvalidHandle => @panic("Statement.numParams passed invalid handle"),
             .StillExecuting => error.StillExecuting,
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
-    pub fn numResultColumns(self: *Statement) ReturnError!usize {
+    /// Get the number of columns in the current result set. If no result set was created, returns 0.
+    pub fn numResultColumns(self: *Statement) !usize {
         var num_result_columns: c.SQLSMALLINT = 0;
         const result = c.SQLNumResultCols(self.handle, &num_result_columns);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => @intCast(usize, num_result_columns),
             .InvalidHandle => @panic("Statement.numResultColumns passed invalid handle"),
             .StillExecuting => error.StillExecuting,
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
-    pub fn paramData(self: *Statement, value_ptr: *c_void) ReturnError!SqlReturn {
+    pub fn paramData(self: *Statement, value_ptr: *c_void) !void {
         const result = c.SQLParamData(self.handle, &value_ptr);
         return switch (@intToEnum(SqlReturn, result)) {
+            .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.paramData passed invalid handle"),
             .StillExecuting => error.StillExecuting,
-            .Error => error.Error,
-            else => @intToEnum(SqlReturn, result)
+            else => self.getLastError(),
         };
     }
 
-    pub fn procedureColumns(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, procedure_name: []const u8, column_name: []const u8) ReturnError!void {
+    pub fn procedureColumns(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, procedure_name: []const u8, column_name: []const u8) !void {
         const result = c.SQLProcedureColumns(
             self.handle,
             if (catalog_name) |cn| cn.ptr else null,
@@ -537,11 +567,12 @@ pub const Statement = struct {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.procedureColumns passed invalid handle"),
             .StillExecuting => error.StillExecuting,
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
-    pub fn procedures(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, procedure_name: []const u8) ReturnError!void {
+    /// Return the list of procedure names in a data source.
+    pub fn procedures(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, procedure_name: []const u8) !void {
         const result = c.SQLProcedures(
             self.handle,
             if (catalog_name) |cn| cn.ptr else null,
@@ -555,51 +586,59 @@ pub const Statement = struct {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.procedures passed invalid handle"),
             .StillExecuting => error.StillExecuting,
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
-    pub fn putData(self: *Statement, data: anytype, str_len_or_ind_ptr: c_longlong) ReturnError!void {
+    pub fn putData(self: *Statement, data: anytype, str_len_or_ind_ptr: c_longlong) !void {
         const result = c.SQLPutData(self.handle, @ptrCast([*c]c_void, &data), str_len_or_ind_ptr);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.putData passed invalid handle"),
             .StillExecuting => error.StillExecuting,
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
     /// Get the number of rows affected by an UPDATE, INSERT, or DELETE statement.
-    pub fn rowCount(self: *Statement) ReturnError!usize {
+    pub fn rowCount(self: *Statement) !usize {
         var row_count: c.SQLLEN = 0;
         const result = c.SQLRowCount(self.handle, &row_count);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => @intCast(usize, row_count),
             .InvalidHandle => @panic("Statement.rowCount passed invalid handle"),
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
-    pub fn setCursorName(self: *Statement, cursor_name: []const u8) ReturnError!void {
+    pub fn setCursorName(self: *Statement, cursor_name: []const u8) !void {
         const result = c.SQLSetCursorName(self.handle, cursor_name.ptr, @intCast(c.SQLSMALLINT, cursor_name.len));
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.setCursorName passed invalid handle"),
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
-    pub fn setPos(self: *Statement, row_number: usize, operation: odbc.CursorOperation, lock_type: odbc.LockType) ReturnError!SqlReturn {
+    pub fn setPos(self: *Statement, row_number: usize, operation: odbc.CursorOperation, lock_type: odbc.LockType) !void {
         const result = c.SQLSetPos(self.handle, @intCast(c.SQLSETPOSIROW, row_number), @enumToInt(operation), @enumToInt(lock_type));
         return switch (@intToEnum(SqlReturn, result)) {
+            .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.setPos passed invalid handle"),
             .StillExecuting => error.StillExecuting,
-            .Error => error.Error,
-            else => @intToEnum(SqlReturn, result),
+            else => self.getLastError(),
         };
     }
 
-    pub fn specialColumns(self: *Statement, identifier_type: odbc.ColumnIdentifierType, catalog_name: ?[]const u8, schema_name: ?[]const u8, table_name: []const u8, row_id_scope: odbc.RowIdScope, nullable: odbc.Nullable) ReturnError!void {
+    pub fn specialColumns(
+        self: *Statement, 
+        identifier_type: odbc.ColumnIdentifierType, 
+        catalog_name: ?[]const u8, 
+        schema_name: ?[]const u8, 
+        table_name: []const u8, 
+        row_id_scope: odbc.RowIdScope, 
+        nullable: odbc.Nullable
+    ) !void {
         const result = c.SQLSpecialColumns(
             self.handle,
             @enumToInt(identifier_type),
@@ -616,11 +655,11 @@ pub const Statement = struct {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.specialColumns passed invalid handle"),
             .StillExecuting => error.StillExecuting,
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
-    pub fn statistics(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, table_name: []const u8, unique: bool, reserved: odbc.Reserved) ReturnError!void {
+    pub fn statistics(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, table_name: []const u8, unique: bool, reserved: odbc.Reserved) !void {
         const result = c.SQLStatistics(
             self.handle, 
             if (catalog_name) |cn| cn.ptr else null,
@@ -636,11 +675,11 @@ pub const Statement = struct {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.statistics passed invalid handle"),
             .StillExecuting => error.StillExecuting,
-            else => error.Error,
+            else => self.getLastError(),
         };
     }
 
-    pub fn tablePrivileges(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, table_name: []const u8) ReturnError!void {
+    pub fn tablePrivileges(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, table_name: []const u8) !void {
         const result = c.SQLTablePrivileges(
             self.handle,
             if (catalog_name) |cn| @intToPtr([*c]u8, @ptrToInt(cn.ptr)) else null,
@@ -654,11 +693,11 @@ pub const Statement = struct {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.tablePrivileges passed invalid handle"),
             .StillExecuting => error.StillExecuting,
-            else => error.Error,
+            else => self.getLastError(),
         };
     }
 
-    pub fn tables(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, table_name: ?[]const u8, table_type: ?[]const u8) ReturnError!void {
+    pub fn tables(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, table_name: ?[]const u8, table_type: ?[]const u8) !void {
         const result = c.SQLTables(
             self.handle,
             if (catalog_name) |cn| @intToPtr([*c]u8, @ptrToInt(cn.ptr)) else null,
@@ -674,20 +713,24 @@ pub const Statement = struct {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.tables passed invalid handle"),
             .StillExecuting => error.StillExecuting,
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
-    pub fn getAllCatalogs(self: *Statement) ReturnError!void {
+    pub fn getAllCatalogs(self: *Statement) !void {
         return try self.tables(c.SQL_ALL_CATALOGS, "", "", "");
     }
 
-    pub fn getAllSchemas(self: *Statement) ReturnError!void {
+    pub fn getAllSchemas(self: *Statement) !void {
         return try self.tables("", c.SQL_ALL_SCHEMAS, "", "");
     }
 
-    pub fn getAllTableTypes(self: *Statement) ReturnError!void {
+    pub fn getAllTableTypes(self: *Statement) !void {
         return try self.tables("", "", "", c.SQL_ALL_TABLE_TYPES);
+    }
+
+    pub fn getLastError(self: *const Statement) odbc_error.LastError {
+        return odbc_error.getLastError(odbc.HandleType.Statement, self.handle);
     }
 
     pub fn getErrors(self: *Statement, allocator: *Allocator) ![]odbc_error.SqlState {
