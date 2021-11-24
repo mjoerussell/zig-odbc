@@ -152,32 +152,30 @@ pub fn main() anyerror!void {
     try statement.tables("zig-test", "public", "%", "%");
 
     while (true) {
-        if (statement.fetch()) {
-            if (catalog_col_ind != odbc.sys.SQL_NULL_DATA) {
-                std.debug.print("Catalog: {s}\n", .{catalog_col_buf[0..@intCast(usize, catalog_col_ind)]});
-            }
-            if (schema_col_ind != odbc.sys.SQL_NULL_DATA) {
-                std.debug.print("Schema: {s}\n", .{schema_col_buf[0..@intCast(usize, schema_col_ind)]});
-            }
-            if (table_name_col_ind != odbc.sys.SQL_NULL_DATA) {
-                std.debug.print("Table Name: {s}\n", .{table_name_col_buf[0..@intCast(usize, table_name_col_ind)]});
-            }
-            if (table_type_col_ind != odbc.sys.SQL_NULL_DATA) {
-                std.debug.print("Table Type: {s}\n", .{table_type_col_buf[0..@intCast(usize, table_type_col_ind)]});
-            }
-            if (remarks_col_ind != odbc.sys.SQL_NULL_DATA) {
-                std.debug.print("Remarks: {s}\n", .{remarks_col_buf[0..@intCast(usize, remarks_col_ind)]});
-            }
-        } else |err| {
-            switch (err) {
-                error.NoData => {
-                    std.debug.print("No data available\n", .{});
-                    try statement.closeCursor();
-                    break;
-                },
-                error.StillExecuting => continue,
-                else => break
-            }
+        const has_data = statement.fetch() catch |err| switch (err) {
+            error.StillExecuting => continue,
+            else => break,
+        };
+
+        if (!has_data) {
+            try statement.closeCursor();
+            break;
+        }
+
+        if (catalog_col_ind != odbc.sys.SQL_NULL_DATA) {
+            std.debug.print("Catalog: {s}\n", .{catalog_col_buf[0..@intCast(usize, catalog_col_ind)]});
+        }
+        if (schema_col_ind != odbc.sys.SQL_NULL_DATA) {
+            std.debug.print("Schema: {s}\n", .{schema_col_buf[0..@intCast(usize, schema_col_ind)]});
+        }
+        if (table_name_col_ind != odbc.sys.SQL_NULL_DATA) {
+            std.debug.print("Table Name: {s}\n", .{table_name_col_buf[0..@intCast(usize, table_name_col_ind)]});
+        }
+        if (table_type_col_ind != odbc.sys.SQL_NULL_DATA) {
+            std.debug.print("Table Type: {s}\n", .{table_type_col_buf[0..@intCast(usize, table_type_col_ind)]});
+        }
+        if (remarks_col_ind != odbc.sys.SQL_NULL_DATA) {
+            std.debug.print("Remarks: {s}\n", .{remarks_col_buf[0..@intCast(usize, remarks_col_ind)]});
         }
     }
 
@@ -190,14 +188,9 @@ pub fn main() anyerror!void {
         \\  age INT DEFAULT 18
         \\)
     ) catch |err| {
-        var error_buffer: [@sizeOf(odbc.Error.SqlState) * 5]u8 = undefined;
-        var fba = std.heap.FixedBufferAllocator.init(error_buffer[0..]);
-        const errors = try statement.getErrors(&fba.allocator);
-        for (errors) |e| {
-            std.debug.print("Execute Error: {s}\n", .{@tagName(e)});
-        }
+        std.debug.print("Execute Error: {s}\n", .{@errorName(err)});
         return err;
-    }
+    };
     std.debug.print("Execute result: {s}\n", .{@tagName(create_table_result)});
 }
 ```
@@ -244,28 +237,21 @@ pub fn main() !void {
 
     // Fetch all the results
     while (true) {
-        if (statement.fetch()) {
-            if (id_ind != odbc.sys.SQL_NULL_DATA) {
-                std.debug.print("Id: {}\n", .{id_buf});
-            }
-            if (name_ind != odbc.sys.SQL_NULL_DATA) {
-                std.debug.print("Name: {s}\n", .{name_buf[0..@intCast(usize, name_ind)]});
-            }
-            if (occupation_ind != odbc.sys.SQL_NULL_DATA) {
-                std.debug.print("Occupation: {s}\n", .{occupation_buf[0..@intCast(usize, occupation_ind)]});
-            }
-            if (age_ind != odbc.sys.SQL_NULL_DATA) {
-                std.debug.print("Age: {}\n", .{age_buf});
-            }
-        } else |err| {
-            switch (err) {
-                error.NoData => {
-                    std.debug.print("No Data Available", .{});
-                    break;
-                },
-                error.StillExecuting => continue,
-                else => break
-            }
+        const has_data = statement.fetch() catch |err| switch (err) {
+            error.StillExecuting => continue,
+            else => break,
+        };
+        if (id_ind != odbc.sys.SQL_NULL_DATA) {
+            std.debug.print("Id: {}\n", .{id_buf});
+        }
+        if (name_ind != odbc.sys.SQL_NULL_DATA) {
+            std.debug.print("Name: {s}\n", .{name_buf[0..@intCast(usize, name_ind)]});
+        }
+        if (occupation_ind != odbc.sys.SQL_NULL_DATA) {
+            std.debug.print("Occupation: {s}\n", .{occupation_buf[0..@intCast(usize, occupation_ind)]});
+        }
+        if (age_ind != odbc.sys.SQL_NULL_DATA) {
+            std.debug.print("Age: {}\n", .{age_buf});
         }
     }
 }
