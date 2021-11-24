@@ -1,5 +1,5 @@
 const std = @import("std");
-const builtin = std.builtin;
+const builtin = @import("builtin");
 const Builder = std.build.Builder;
 
 const test_files = .{ "src/types.zig", "src/util.zig" };

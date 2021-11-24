@@ -32,16 +32,19 @@ pub const Connection = struct {
         };
     }
 
+    /// Deinitialize the connection by disconnecting from the data source (if connected) and freeing the 
+    /// connection handle.
     pub fn deinit(self: *Connection) !void {
         if (self.connected) try self.disconnect();
         const result = c.SQLFreeHandle(@enumToInt(HandleType.Connection), self.handle);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
-            else => error.Error
+            else => self.getLastError(),
         };
     }
-
-    pub fn connect(self: *Connection, server_name: []const u8, user_name: []const u8, password: []const u8) ReturnError!void {
+    
+    /// Try to connect to a data source using a username and password.
+    pub fn connect(self: *Connection, server_name: []const u8, user_name: []const u8, password: []const u8) !void {
         const result = c.SQLConnect(
             self.handle, 
             @intToPtr([*c]u8, @ptrToInt(server_name.ptr)), 
@@ -56,11 +59,14 @@ pub const Connection = struct {
                 self.connected = true;
             },
             // @todo Async handling
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
-    pub fn connectExtended(self: *Connection, connection_string: []const u8, completion: odbc.DriverCompletion) ReturnError!void {
+    /// Try to connect to a data source using a connection string. Use the `completion` parameter to determine how the driver
+    /// should handle missing parameters in the connection string. For most non-interactive programs, the appropriate completion
+    /// type is `.NoPrompt`.
+    pub fn connectExtended(self: *Connection, connection_string: []const u8, completion: odbc.DriverCompletion) !void {
         const result = c.SQLDriverConnect(
             self.handle, 
             null, 
@@ -76,14 +82,16 @@ pub const Connection = struct {
                 self.connected = true;
             },
             // @todo Async handling
-            // @todo Better error handling
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
+    /// `browseConnect` is intended to be called multiple times. Each time, the user can pass a connection string with some, all, or none of
+    /// the parameters required to establish a connection. `browseConnect` will return a string that resembles a connection string, which
+    /// contains the information missing from the previous call.
+    ///
+    /// If the user passes all of the necessary parameters, then a connection is established and `browseConnect` will return `null`.
     pub fn browseConnect(self: *Connection, allocator: *Allocator, partial_connection_string: []const u8) !?[]const u8 {
-        // @todo Maybe make a structure for connection string info, so users don't have to build/parse them manually
-        //       Probably should at least provide utilities for getting/putting information into them
         var out_string_len: c.SQLSMALLINT = 0;
         var out_string_buffer = try allocator.alloc(u8, 100);
         errdefer allocator.free(out_string_buffer);
@@ -101,62 +109,62 @@ pub const Connection = struct {
                 .NeedsData => {
                     if (std.mem.eql(u8, partial_connection_string, out_string_buffer)) {
                         // If SQLBrowseConnect returns NeedsData and the out string is unchanged from the input string, that means that there are
-                        // unrecoverable errors. The caller of this function can get the error info to see what happened.
-                        return error.Error;
+                        // unrecoverable errors.
+                        return self.getLastError();
                     }
                     // Otherwise, when NeedsData is returned out_string_buffer contains a connection string-like value that indicates
                     // to the user what info they need to pass next
                     return out_string_buffer;
                 },
                 .InvalidHandle => @panic("Connection.browseConnect passed invalid handle"),
-                else => {
-                    var error_buffer: [@sizeOf(odbc_error.SqlState)]u8 = undefined;
-                    var fba = std.heap.FixedBufferAllocator.init(error_buffer);
-                    const errors = try self.getErrors(&fba.allocator);
-                    for (errors) |e| {
-                        if (e == .StringRightTrunc) {
-                            // If the error that occurred was StringRightTrunc, then the out string buffer was not big enough
-                            // to store the result.
-                            out_string_buffer = try allocator.realloc(out_string_buffer, @intCast(usize, out_string_len) + 1);
-                            continue :run_loop;
-                        }
-                    }
-                    return error.Error;
-                    
+                else => switch (self.getLastError()) {
+                    error.StringRightTrunc => {
+                        out_string_buffer = try allocator.realloc(out_string_buffer, @intCast(usize, out_string_len) + 1);
+                        continue :run_loop;
+                    },
+                    else => |err| return err,
                 }
             }
         }
     }
 
-    pub fn disconnect(self: *Connection) ReturnError!void {
+    /// Disconnect from the data source. If not connected to a data source, does nothing.
+    /// `deinit` still needs to be called after this function to fully deinitialize a `Connection`.
+    pub fn disconnect(self: *Connection) !void {
+        if (!self.connected) return;
         const result = c.SQLDisconnect(self.handle);
         return switch(@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {
                 self.connected = false;
             },
             // @todo Async handling
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
-    pub fn endTransaction(self: *Connection, completion_type: odbc.CompletionType) ReturnError!void {
+    /// Commit or rollback all open transactions on any statement associated with this connection.
+    pub fn endTransaction(self: *Connection, completion_type: odbc.CompletionType) !void {
         const result = c.SQLEndTran(@enumToInt(HandleType.Connection), self.handle, @enumToInt(completion_type));
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Connection.endTransaction passed invalid handle"),
-            else => error.Error,
+            else => self.getLastError(),
         };
     }
 
-    pub fn cancel(self: *Connection) ReturnError!void {
+    /// Cancel an in-progress function. This could be a function that returned `StillProcessing`, `NeedsData`, or
+    /// a function that is actively processing on another thread.
+    pub fn cancel(self: *Connection) !void {
         const result = c.SQLCancelHandle(@enumToInt(HandleType.Connection), self.handle);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Connection.cancel passed invalid handle"),
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
+    /// Return `true` if this driver supports the specified function, `false` otherwise. If any error occurs
+    /// while running this function, returns `false`.
     pub fn isFunctionEnabled(self: *Connection, function_id: odbc.FunctionId) bool {
         var supported: c.SQLUSMALLINT = 0;
         const result = c.SQLGetFunctions(self.handle, @enumToInt(function_id), &supported);
@@ -166,14 +174,16 @@ pub const Connection = struct {
         };
     }
 
+    /// Get all of the functions supported by this driver.
     pub fn getAllEnabledFunctions(self: *Connection, allocator: *Allocator) ![]odbc.FunctionId {
         var result_buffer: [c.SQL_API_ODBC3_ALL_FUNCTIONS_SIZE]c.SQLUSMALLINT = undefined;
         var result_list = std.ArrayList(odbc.FunctionId).init(allocator);
         const result = c.SQLGetFunctions(self.handle, c.SQL_API_ODBC3_ALL_FUNCTIONS, @ptrCast([*c]c_ushort, &result_buffer));
         switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {
-                // Iterate over all of the function ids and check if they exist. See the SQL_FUNC_EXITS macro
+                // Iterate over all of the function ids and check if they exist.
                 inline for (@typeInfo(odbc.FunctionId).Enum.fields) |field| {
+                    // Recreates the following macro:
                     // SQL_FUNC_EXISTS(pfExists,uwAPI) ((*(((UWORD*) (pfExists)) + ((uwAPI) >> 4)) & (1 << ((uwAPI) & 0x000F))) ? SQL_TRUE : SQL_FALSE)
                     const func_exists = (@ptrToInt(@ptrCast(*c_ushort, &result_buffer)) + (field.value >> 4)) & (1 << (field.value & 0x000F)) != 0;
                     if (func_exists) {
@@ -182,10 +192,11 @@ pub const Connection = struct {
                 }
                 return result_list.toOwnedSlice();
             },
-            else => return error.Error
+            else => return self.getLastError(),
         }
     }
 
+    /// Given a SQL statement, return the same statement as modified by the current driver.
     pub fn nativeSql(self: *Connection, allocator: *Allocator, sql_statement: []const u8) ![]const u8 {
         var out_statement_len: c.SQLINTEGER = 0;
         // Allocate a buffer for the out string, allocate the same number of chars as the in string because it's likely to be
@@ -198,20 +209,14 @@ pub const Connection = struct {
             switch (@intToEnum(SqlReturn, result)) {
                 .Success, .SuccessWithInfo => return out_statement_buffer,
                 .InvalidHandle => @panic("Connection.nativeSql passed invalid handle"),
-                else => {
-                    var error_buffer: [@sizeOf(odbc_error.SqlState) * 3]u8 = undefined;
-                    var fba = std.heap.FixedBufferAllocator.init(error_buffer);
-                    const errors = self.getErrors(&fba.allocator) catch return error.Error;
-                    for (errors) |e| {
-                        if (e == .StringRightTrunc) {
-                            // If the out string was truncated, realloc the correct length and run again
-                            out_statement_buffer = try allocator.realloc(out_statement_buffer, @intCast(usize, out_statement_len) + 1);
-                            continue :run_loop;
-                        }
-                    }
-                    // If the error StringRightTrunc didn't happen, return a generic error for the caller to deal with
-                    return error.Error;
-                } 
+                else => switch (self.getLastError()) {
+                    error.StringRightTrunc => {
+                        // If the out string was truncated, realloc to the correct length and run again
+                        out_statement_buffer = try allocator.realloc(out_statement_buffer, @intCast(usize, out_statement_len) + 1);
+                        continue :run_loop;
+                    },
+                    else => |err| return err,
+                }
             }
         }
         
@@ -233,21 +238,15 @@ pub const Connection = struct {
                     return value;
                 },
                 .InvalidHandle => @panic("Connection.getInfo passed invalid handle"),
-                else => {
-                    var error_buffer: [@sizeOf(odbc_error.SqlState) * 5]u8 = undefined;
-                    var fba = std.heap.FixedBufferAllocator.init(error_buffer[0..]);
-                    const errors = try self.getErrors(&fba.allocator);
-                    for (errors) |e| {
-                        if (e == .StringRightTrunc) {
-                            result_buffer = try allocator.realloc(result_buffer, @intCast(usize, result_string_length));
-                            continue :run_loop;
-                        }
-                    }
-                    return odbc_error.ReturnError.Error;
+                else => switch (self.getLastError()) {
+                    error.StringRightTrunc => {
+                        result_buffer = try allocator.realloc(result_buffer, @intCast(usize, result_string_length));
+                        continue :run_loop;
+                    },
+                    else => |err| return err,
                 }
             }
         }
-
     }
 
     pub fn getAttribute(self: *Connection, comptime attribute: Attribute, allocator: *Allocator) !?AttributeValue {
@@ -261,24 +260,15 @@ pub const Connection = struct {
                 .Success, .SuccessWithInfo => return attribute.getAttributeValue(value),
                 .NoData => return null,
                 .InvalidHandle => @panic("Connection.getAttribute passed invalid handle"),
-                else => {
-                    // Get the errors. If the error was that the attribute value string was truncated, realloc more memory
-                    // for the string and try again. If it was anything else, just return ReturnError.Error.
-                    var error_buffer: [@sizeOf(odbc_error.SqlState) * 5]u8 = undefined;
-                    var fba = std.heap.FixedBufferAllocator.init(error_buffer[0..]);
-                    const errors = self.getErrors(&fba.allocator) catch return ReturnError.Error;
-                    for (errors) |err| {
-                        if (err == .StringRightTrunc) {
-                            value = try allocator.realloc(value, @intCast(usize, attribute_str_len) + 1);
-                            // Continue the outer loop to try again
-                            continue :attr_loop;
-                        }
-                    }
-                    return ReturnError.Error;
+                else => switch (self.getLastError()) {
+                    error.StringRightTrunc => {
+                        value = try allocator.realloc(value, @intCast(usize, attribute_str_len) + 1);
+                        continue :attr_loop;
+                    },
+                    else => |err| return err,
                 }
             }
         }
-        
     }
 
     pub fn setAttribute(self: *Connection, value: AttributeValue) !void {
@@ -299,8 +289,12 @@ pub const Connection = struct {
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Connection.setAttribute passed invalid handle"),
-            else => ReturnError.Error
+            else => self.getLastError(),
         };
+    }
+
+    pub fn getLastError(self: *const Connection) odbc_error.LastError {
+        return odbc_error.getLastError(odbc.HandleType.Connection, self.handle);
     }
 
     pub fn getErrors(self: *Connection, allocator: *Allocator) ![]odbc_error.SqlState {

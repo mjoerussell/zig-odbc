@@ -10,7 +10,6 @@ const odbc_error = @import("error.zig");
 const ReturnError = odbc_error.ReturnError;
 const OdbcError = odbc_error.OdbcError;
 
-// @todo persistent FixedBufferAllocator for errors?
 pub const Environment = struct {
     pub const Attribute = odbc.EnvironmentAttribute;
     pub const AttributeValue = odbc.EnvironmentAttributeValue;
@@ -30,12 +29,13 @@ pub const Environment = struct {
     /// Free the environment handle. If this succeeds, then it's invalid to try to use this environment
     /// again. If this fails, then the environment handle will still be active and must be deinitialized
     /// again after fixing the errors.
-    pub fn deinit(self: *Environment) ReturnError!void {
+    pub fn deinit(self: *Environment) !void {
         const result = c.SQLFreeHandle(@enumToInt(HandleType.Environment), self.handle);
         return switch (@intToEnum(SqlReturn, result)) {
+            .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Environment deinit passed invalid handle type"), // Handle type is hardcoded above, this should never be reached
-            .Error => error.Error,
-            else => {}
+            .Error => self.getLastError(),
+            else => {},
         };
     }
 
@@ -52,19 +52,16 @@ pub const Environment = struct {
                     .server_name = server_name_buf[0..@intCast(usize, server_name_len)],
                     .description = description_buf[0..@intCast(usize, description_len)],
                 },
-                .SuccessWithInfo => {
-                    const errors = try self.getErrors();
-                    for (errors) |err| {
-                        if (err == .StringRightTrunc) {
-                            server_name_buf = try allocator.resize(server_name_buf, @intCast(usize, server_name_len + 1));
-                            description_buf = try allocator.resize(description_buf, @intCast(usize, description_len + 1));
-                            continue :run_loop;
-                        }
-                    }
-                    return error.Error;
+                .SuccessWithInfo => switch (self.getLastError()) {
+                    error.StringRightTrunc => {
+                        server_name_buf = try allocator.resize(server_name_buf, @intCast(usize, server_name_len + 1));
+                        description_buf = try allocator.resize(description_buf, @intCast(usize, description_len + 1));
+                        continue :run_loop;
+                    },
+                    else => |err| return err,
                 },
                 .NoData => return null,
-                else => return error.Error
+                else => return self.getLastError(),
             }
         }
     }
@@ -83,21 +80,17 @@ pub const Environment = struct {
                     .attributes = attribute_buf[0..@intCast(usize, attributes_len)]
                 },
                 .NoData => return null,
-                .SuccessWithInfo => {
-                    const errors = try self.getErrors();
-                    for (errors) |err| {
-                        if (err == .StringRightTrunc) {
-                            description_buf = try allocator.resize(description_buf, @intCast(usize, description_len + 1));
-                            attribute_buf = try allocator.resize(attribute_buf, @intCast(usize, attributes_len + 1));
-                            continue :run_loop;
-                        }
-                    }
-                    return error.Error;
+                .SuccessWithInfo => switch (self.getLastError()) {
+                    error.StringRightTrunc => {
+                        description_buf = try allocator.resize(description_buf, @intCast(usize, description_len + 1));
+                        attribute_buf = try allocator.resize(attribute_buf, @intCast(usize, attributes_len + 1));
+                        continue :run_loop;
+                    },
+                    else => |err| return err,
                 },
-                else => return error.Error
+                else => return self.getLastError(),
             }
         }
-
     }
 
     pub fn getAllDrivers(self: *Environment, allocator: *Allocator) ![]odbc.Driver {
@@ -114,20 +107,20 @@ pub const Environment = struct {
         return driver_list.toOwnedSlice();
     }
 
-    pub fn getAttribute(self: *Environment, attribute: Attribute) ReturnError!AttributeValue {
+    pub fn getAttribute(self: *Environment, attribute: Attribute) !AttributeValue {
         var value: i32 = 0;
         const result = c.SQLGetEnvAttr(self.handle, @enumToInt(attribute), &value, 0, null);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => attribute.getAttributeValue(value),
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
-    pub fn setAttribute(self: *Environment, value: AttributeValue) ReturnError!void {
+    pub fn setAttribute(self: *Environment, value: AttributeValue) !void {
         const result = c.SQLSetEnvAttr(self.handle, @enumToInt(std.meta.activeTag(value)), @intToPtr(*c_void, value.getValue()), 0);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
-            else => error.Error
+            else => self.getLastError(),
         };
     }
 
@@ -140,6 +133,10 @@ pub const Environment = struct {
     pub fn getOdbcVersion(self: *Environment) !AttributeValue.OdbcVersion {
         const attr = try self.getAttribute(.OdbcVersion);
         return attr.OdbcVersion;
+    }
+
+    pub fn getLastError(self: *const Environment) odbc_error.LastError {
+        return odbc_error.getLastError(odbc.HandleType.Environment, self.handle);
     }
 
     pub fn getErrors(self: *Environment, allocator: *Allocator) ![]odbc_error.SqlState {
