@@ -67,6 +67,7 @@ pub const SqlState = enum {
     InvalidEscapeSequence,
     StringLengthMismatch,
     IntegrityConstraintViolation,
+    DuplicateKeyConstraintViolation,
     InvalidCursorState,
     InvalidTransactionState,
     TransactionState,
@@ -143,8 +144,38 @@ pub const SqlState = enum {
     TraceFileError,
     InvalidFileDSN,
     CorruptFileDataSource,
+
+    fn toError(sql_state: SqlState) SqlStateError {
+        inline for (@typeInfo(SqlStateError).ErrorSet.?) |error_field| {
+            if (std.mem.eql(u8, error_field.name, @tagName(sql_state))) {
+                // return @Type(std.builtin.TypeInfo{ .Error = error_field });
+                return @field(SqlStateError, error_field.name);
+            }
+        }
+
+        unreachable;
+    }
     
 };
+
+pub const SqlStateError = EnumError(SqlState);
+
+fn EnumError(comptime E: type) type {
+    switch (@typeInfo(E)) {
+        .Enum => {
+            const tag_count = std.meta.fields(E).len;
+            var error_tags: [tag_count]std.builtin.TypeInfo.Error = undefined;
+
+            for (std.meta.fields(E)) |enum_field, index| {
+                error_tags[index] = .{ .name = enum_field.name };
+            }
+
+            const err_set: std.builtin.TypeInfo = .{ .ErrorSet = error_tags[0..] };
+            return @Type(err_set);
+        },
+        else => @compileError("EnumError only accepts enum types."),
+    }
+}
 
 pub const OdbcError = StringEnum(SqlState, .{
     .{"00000", .Success},
@@ -187,6 +218,7 @@ pub const OdbcError = StringEnum(SqlState, .{
     .{"22025", .InvalidEscapeSequence},
     .{"22026", .StringLengthMismatch},
     .{"23000", .IntegrityConstraintViolation},
+    .{"23505", .DuplicateKeyConstraintViolation},
     .{"24000", .InvalidCursorState},
     .{"25000", .InvalidTransactionState},
     .{"25S01", .TransactionState},
@@ -310,6 +342,28 @@ pub fn getDiagnosticRecords(allocator: *Allocator, handle_type: odbc.HandleType,
     }
 
     return records;
+}
+
+pub const LastError = error{NoError}||SqlStateError;
+pub fn getLastError(handle_type: odbc.HandleType, handle: *c_void) LastError {
+    var num_records: u64 = 0;
+    _ = c.SQLGetDiagField(@enumToInt(handle_type), handle, 0, @enumToInt(odbc.DiagnosticIdentifier.Number), &num_records, 0, null);
+
+    // if (num_records == 0) return null;
+    if (num_records == 0) return error.NoError;
+
+    var sql_state: [5:0]u8 = undefined;
+    
+    const result = c.SQLGetDiagRec(@enumToInt(handle_type), handle, 1, sql_state[0..], null, null, 0, null);
+    switch (@intToEnum(odbc.SqlReturn, result)) {
+        .Success, .SuccessWithInfo => {
+            // const error_state = OdbcError.fromString(&sql_state) catch return null;
+            const error_state = OdbcError.fromString(&sql_state) catch return SqlStateError.GeneralError;
+            return error_state.toError();
+        },
+        // else => return null,
+        else => return SqlStateError.GeneralError,
+    }
 }
 
 pub fn getErrors(allocator: *Allocator, handle_type: odbc.HandleType, handle: *c_void) ![]SqlState {
