@@ -284,12 +284,12 @@ pub const DiagnosticRecord = struct {
     error_code: i32,
     error_message: []const u8,
 
-    pub fn deinit(self: *DiagnosticRecord, allocator: *Allocator) void {
+    pub fn deinit(self: *DiagnosticRecord, allocator: Allocator) void {
         allocator.free(self.error_message);
     }
 };
 
-pub fn getDiagnosticRecords(allocator: *Allocator, handle_type: odbc.HandleType, handle: *c_void) ![]DiagnosticRecord {
+pub fn getDiagnosticRecords(allocator: Allocator, handle_type: odbc.HandleType, handle: *c_void) ![]DiagnosticRecord {
     var num_records: u64 = 0;
     _ = c.SQLGetDiagField(@enumToInt(handle_type), handle, 0, @enumToInt(odbc.DiagnosticIdentifier.Number), &num_records, 0, null);
 
@@ -345,7 +345,7 @@ pub fn getLastError(handle_type: odbc.HandleType, handle: *c_void) LastError {
     }
 }
 
-pub fn getErrors(allocator: *Allocator, handle_type: odbc.HandleType, handle: *c_void) ![]SqlState {
+pub fn getErrors(allocator: Allocator, handle_type: odbc.HandleType, handle: *c_void) ![]SqlState {
     var num_records: u64 = 0;
     _ = c.SQLGetDiagField(@enumToInt(handle_type), handle, 0, @enumToInt(odbc.DiagnosticIdentifier.Number), &num_records, 0, null);
 

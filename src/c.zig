@@ -1,4 +1,4 @@
-const builtin = @import("std").builtin;
+const builtin = @import("builtin");
 
 const c_decls =  if (builtin.os.tag == .windows)
     @cImport({

@@ -1,4 +1,5 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 const bytesToValue = std.mem.bytesToValue;
 const toBytes = std.mem.toBytes;
 const TagType = std.meta.TagType;
@@ -33,7 +34,7 @@ pub const Driver = struct {
     description: []const u8,
     attributes: []const u8,
 
-    pub fn deinit(self: *Driver, allocator: *std.mem.Allocator) void {
+    pub fn deinit(self: *Driver, allocator: Allocator) void {
         allocator.free(self.description);
         allocator.free(self.attributes);
     }
@@ -225,7 +226,7 @@ pub const ConnectionAttributeValue = union(ConnectionAttribute) {
         UseDriver = odbc.SQL_CUR_USE_DRIVER
     };
 
-    pub fn getValue(self: ConnectionAttributeValue, allocator: *std.mem.Allocator) ![]u8 {
+    pub fn getValue(self: ConnectionAttributeValue, allocator: std.mem.Allocator) ![]u8 {
         const value_buffer: []u8 = switch (self) {
             .AccessMode => |v| toBytes(@enumToInt(v))[0..],
             .EnableAsync => |v| if (v) toBytes(@as(usize, odbc.SQL_ASYNC_ENABLE_ON))[0..] else toBytes(@as(usize, odbc.SQL_ASYNC_ENABLE_OFF))[0..],
@@ -1800,7 +1801,7 @@ pub const StatementAttributeValue = union(StatementAttribute) {
         Unique = odbc.SQL_SC_UNIQUE,
     };
 
-    pub fn valueAsBytes(attr_value: StatementAttributeValue, allocator: *std.mem.Allocator) ![]const u8 {
+    pub fn valueAsBytes(attr_value: StatementAttributeValue, allocator: Allocator) ![]const u8 {
         const bytes: []u8 = switch (attr_value) {
             .AppParamDescription => |v| toBytes(@ptrToInt(v))[0..],
             .AppRowDescription => |v| toBytes(@ptrToInt(v))[0..],

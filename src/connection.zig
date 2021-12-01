@@ -280,7 +280,7 @@ pub const Connection = struct {
                 // For integer attributes, get the value and then cast it to ?*c_void to pass it on
                 var result_buffer: [@sizeOf(u32)]u8 = undefined;
                 var fba = std.heap.FixedBufferAllocator.init(result_buffer[0..]);
-                _ = try value.getValue(&fba.allocator);
+                _ = try value.getValue(fba.allocator());
 
                 const int_val = std.mem.bytesToValue(u32, &result_buffer);
                 break :blk c.SQLSetConnectAttr(self.handle, @enumToInt(std.meta.activeTag(value)), @intToPtr(?*c_void, int_val), 0);

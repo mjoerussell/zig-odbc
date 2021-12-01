@@ -181,7 +181,7 @@ pub const Statement = struct {
         };
     }
 
-    pub fn getColumnAttribute(self: *Statement, allocator: *Allocator, column_number: usize, comptime attr: odbc.ColumnAttribute) !odbc.ColumnAttributeValue {
+    pub fn getColumnAttribute(self: *Statement, allocator: Allocator, column_number: usize, comptime attr: odbc.ColumnAttribute) !odbc.ColumnAttributeValue {
         var string_attr_length: c_short = 0;
         // First call to get the length of the string required to hold the string attribute value, if applicable
         _ = c.SQLColAttribute(self.handle, @intCast(c_ushort, column_number), @enumToInt(attr), null, 0, &string_attr_length, null);
@@ -485,7 +485,7 @@ pub const Statement = struct {
                 var buffer: [100]u8 = undefined;
                 var fba = std.heap.FixedBufferAllocator.init(buffer[0..]);
                 
-                _ = try attr_value.valueAsBytes(&fba.allocator);
+                _ = try attr_value.valueAsBytes(fba.allocator());
                 const int_value = std.mem.bytesAsValue(u64, buffer[0..@sizeOf(u64)]);
 
                 break :blk c.SQLSetStmtAttr(self.handle, @enumToInt(std.meta.activeTag(attr_value)), @intToPtr(?*c_void, @intCast(usize, int_value.*)), 0);
@@ -733,11 +733,11 @@ pub const Statement = struct {
         return odbc_error.getLastError(odbc.HandleType.Statement, self.handle);
     }
 
-    pub fn getErrors(self: *Statement, allocator: *Allocator) ![]odbc_error.SqlState {
+    pub fn getErrors(self: *Statement, allocator: Allocator) ![]odbc_error.SqlState {
         return try odbc_error.getErrors(allocator, odbc.HandleType.Statement, self.handle);
     }
 
-    pub fn getDiagnosticRecords(self: *Statement, allocator: *Allocator) ![]odbc_error.DiagnosticRecord {
+    pub fn getDiagnosticRecords(self: *Statement, allocator: Allocator) ![]odbc_error.DiagnosticRecord {
         return try odbc_error.getDiagnosticRecords(allocator, odbc.HandleType.Statement, self.handle);
     }
 
