@@ -74,7 +74,7 @@ pub const Statement = struct {
             self.handle, 
             column_number, 
             @enumToInt(target_type), 
-            @ptrCast(*c_void, target_buffer.ptr), 
+            @ptrCast(?*c_void, target_buffer.ptr), 
             @intCast(c_longlong, column_size orelse target_buffer.len * @sizeOf(BufferInfo.Pointer.child)), 
             str_len_or_ind_ptr
         );

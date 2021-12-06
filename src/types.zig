@@ -4,6 +4,8 @@ const bytesToValue = std.mem.bytesToValue;
 const toBytes = std.mem.toBytes;
 const TagType = std.meta.TagType;
 
+const builtin = @import("builtin");
+
 const odbc = @import("c.zig");
 
 const util = @import("util.zig");
@@ -1451,7 +1453,33 @@ pub const CType = enum(odbc.SQLSMALLINT) {
         precision: odbc.SQLCHAR,
         scale: odbc.SQLSCHAR,
         sign: odbc.SQLCHAR,
-        val: [odbc.SQL_MAX_NUMERIC_LEN]odbc.SQLCHAR,
+        val: [16]odbc.SQLCHAR,
+
+        pub fn toFloat(numeric: SqlNumeric, comptime FloatType: type) FloatType {
+            if (@typeInfo(FloatType) != .Float) {
+                @compileError("SqlNumeric.toFloat expects a float type, found " ++ @typeName(FloatType));
+            }
+
+            const numeric_value = switch (builtin.cpu.arch.endian()) {
+                .Big => blk: {
+                    var result_buffer: [16]odbc.SQLCHAR = undefined;
+                    std.mem.copyBackwards(odbc.SQLCHAR, result_buffer[0..], numeric.val[0..]);
+                    break :blk result_buffer;
+                },
+                .Little => numeric.val,
+            };
+
+            const le_scaled_value = std.mem.bytesToValue(u128, numeric_value[0..]);
+            const native_scaled_value = std.mem.littleToNative(u128, le_scaled_value);
+
+            var float_value = @intToFloat(FloatType, native_scaled_value);
+            var scale_index: u8 = 0; 
+            while (scale_index < numeric.scale) : (scale_index += 1) {
+                float_value /= 10;
+            }
+
+            return if (numeric.sign == 1) float_value else -float_value;
+        }
     };
 
     pub const SqlGuid = packed struct {
@@ -1603,7 +1631,7 @@ pub const SqlType = enum(odbc.SQLSMALLINT) {
             .WVarchar => .WChar,
             .WLongVarchar => .WChar,
             .Decimal => .Float,
-            .Numeric => .Float,
+            .Numeric => .Numeric,
             .SmallInt => .STinyInt,
             .Integer => .SLong,
             .Real => .Double,
@@ -1611,7 +1639,7 @@ pub const SqlType = enum(odbc.SQLSMALLINT) {
             .Double => .Double,
             .Bit => .Bit,
             .TinyInt => .STinyInt,
-            .BigInt => .SLong,
+            .BigInt => .SBigInt,
             .Binary => .Bit,
             .VarBinary => .Bit,
             .LongVarBinary => .Bit,
