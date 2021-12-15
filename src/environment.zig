@@ -39,7 +39,7 @@ pub const Environment = struct {
         };
     }
 
-    pub fn getDataSource(self: *Environment, allocator: *Allocator, direction: odbc.Direction) !?odbc.DataSource {
+    pub fn getDataSource(self: *Environment, allocator: Allocator, direction: odbc.Direction) !?odbc.DataSource {
         var server_name_buf = try allocator.alloc(u8, 100);
         var description_buf = try allocator.alloc(u8, 100);
         var server_name_len: i16 = 0;
@@ -66,7 +66,7 @@ pub const Environment = struct {
         }
     }
 
-    pub fn getDriver(self: *Environment, allocator: *Allocator, direction: odbc.Direction) !?odbc.Driver {
+    pub fn getDriver(self: *Environment, allocator: Allocator, direction: odbc.Direction) !?odbc.Driver {
         var description_buf = try allocator.alloc(u8, 100);
         var attribute_buf = try allocator.alloc(u8, 100);
         var description_len: i16 = 0;
@@ -93,7 +93,7 @@ pub const Environment = struct {
         }
     }
 
-    pub fn getAllDrivers(self: *Environment, allocator: *Allocator) ![]odbc.Driver {
+    pub fn getAllDrivers(self: *Environment, allocator: Allocator) ![]odbc.Driver {
         var driver_list = std.ArrayList(odbc.Driver).init(allocator);
         var direction: odbc.Direction = .FetchFirst;
         while (true) {
@@ -139,11 +139,11 @@ pub const Environment = struct {
         return odbc_error.getLastError(odbc.HandleType.Environment, self.handle);
     }
 
-    pub fn getErrors(self: *Environment, allocator: *Allocator) ![]odbc_error.SqlState {
+    pub fn getErrors(self: *Environment, allocator: Allocator) ![]odbc_error.SqlState {
         return try odbc_error.getErrors(allocator, HandleType.Environment, self.handle);
     }
 
-    pub fn getDiagnosticRecords(self: *Environment, allocator: *Allocator) ![]odbc_error.DiagnosticRecord {
+    pub fn getDiagnosticRecords(self: *Environment, allocator: Allocator) ![]odbc_error.DiagnosticRecord {
         return try odbc_error.getDiagnosticRecords(allocator, HandleType.Environment, self.handle);
     }
 
