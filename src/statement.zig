@@ -15,18 +15,18 @@ const SqlState = odbc_error.SqlState;
 const ReturnError = odbc_error.ReturnError;
 const LastError = odbc_error.LastError;
 
-pub const StatementInitError = LastError||error{InvalidHandle};
+pub const StatementInitError = LastError || error{InvalidHandle};
 
 pub const Statement = struct {
     pub const Attribute = odbc.StatementAttribute;
     pub const AttributeValue = odbc.StatementAttributeValue;
 
-    handle: *c_void,
+    handle: *anyopaque,
 
     /// Allocate a new statement handle, using the provided connection as the parent.
     pub fn init(connection: Connection) StatementInitError!Statement {
         var result: Statement = undefined;
-        const alloc_result = c.SQLAllocHandle(@enumToInt(odbc.HandleType.Statement), connection.handle, @ptrCast([*c]?*c_void, &result.handle));
+        const alloc_result = c.SQLAllocHandle(@enumToInt(odbc.HandleType.Statement), connection.handle, @ptrCast([*c]?*anyopaque, &result.handle));
         return switch (@intToEnum(SqlReturn, alloc_result)) {
             .Success, .SuccessWithInfo => result,
             .InvalidHandle => StatementInitError.InvalidHandle,
@@ -40,7 +40,7 @@ pub const Statement = struct {
         const result = c.SQLFreeHandle(@enumToInt(odbc.HandleType.Statement), self.handle);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success => {},
-            .InvalidHandle => @panic("Statement.deinit passed invalid handle"), 
+            .InvalidHandle => @panic("Statement.deinit passed invalid handle"),
             else => self.getLastError(),
         };
     }
@@ -51,33 +51,19 @@ pub const Statement = struct {
     /// * target_type - The C data type of the buffer.
     /// * target_buffer - The buffer that data will be put into. 
     /// * str_len_or_ind_ptr - An indicator value that will later be used to determine the length of data put into `target_buffer`.
-    pub fn bindColumn(
-        self: *Statement, 
-        column_number: u16, 
-        target_type: odbc.CType, 
-        target_buffer: anytype, 
-        str_len_or_ind_ptr: [*]c_longlong, 
-        column_size: ?usize
-    ) LastError!void {
+    pub fn bindColumn(self: *Statement, column_number: u16, target_type: odbc.CType, target_buffer: anytype, str_len_or_ind_ptr: [*]c_longlong, column_size: ?usize) LastError!void {
         const BufferInfo = @typeInfo(@TypeOf(target_buffer));
         comptime {
             switch (BufferInfo) {
                 .Pointer => switch (BufferInfo.Pointer.size) {
                     .Slice => {},
-                    else => @compileError("Expected a slice for parameter target_buffer, got " ++ @typeName(@TypeOf(target_buffer)))
+                    else => @compileError("Expected a slice for parameter target_buffer, got " ++ @typeName(@TypeOf(target_buffer))),
                 },
-                else => @compileError("Expected a slice for parameter target_buffer, got " ++ @typeName(@TypeOf(target_buffer)))
+                else => @compileError("Expected a slice for parameter target_buffer, got " ++ @typeName(@TypeOf(target_buffer))),
             }
         }
 
-        const result = c.SQLBindCol(
-            self.handle, 
-            column_number, 
-            @enumToInt(target_type), 
-            @ptrCast(*c_void, target_buffer.ptr), 
-            @intCast(c_longlong, column_size orelse target_buffer.len * @sizeOf(BufferInfo.Pointer.child)), 
-            str_len_or_ind_ptr
-        );
+        const result = c.SQLBindCol(self.handle, column_number, @enumToInt(target_type), @ptrCast(*anyopaque, target_buffer.ptr), @intCast(c_longlong, column_size orelse target_buffer.len * @sizeOf(BufferInfo.Pointer.child)), str_len_or_ind_ptr);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.bindColumn passed invalid handle"),
@@ -95,28 +81,8 @@ pub const Statement = struct {
     /// * decimal_digits: The number of digits to use for floating point numbers. `null` for other data types.
     /// * str_len_or_ind_ptr: A pointer to a value describing the parameter's length.
     // pub fn bindParameter(self: *Statement, parameter_number: u16, io_type: odbc.InputOutputType, comptime value_type: odbc.CType, parameter_type: odbc.SqlType, value: *value_type.toType(), decimal_digits: ?u16, str_len_or_ind_ptr: *c.SQLLEN) ReturnError!void {
-    pub fn bindParameter(
-        self: *Statement, 
-        parameter_number: u16, 
-        io_type: odbc.InputOutputType, 
-        value_type: odbc.CType, 
-        parameter_type: odbc.SqlType, 
-        value: *c_void, 
-        decimal_digits: ?u16, 
-        str_len_or_ind_ptr: *c.SQLLEN
-    ) LastError!void {
-        const result = c.SQLBindParameter(
-            self.handle, 
-            parameter_number, 
-            @enumToInt(io_type), 
-            @enumToInt(value_type), 
-            @enumToInt(parameter_type), 
-            @sizeOf(@TypeOf(value)),
-            @intCast(c.SQLSMALLINT, decimal_digits orelse 0),
-            value, 
-            @sizeOf(@TypeOf(value)),
-            str_len_or_ind_ptr
-        );
+    pub fn bindParameter(self: *Statement, parameter_number: u16, io_type: odbc.InputOutputType, value_type: odbc.CType, parameter_type: odbc.SqlType, value: *anyopaque, decimal_digits: ?u16, str_len_or_ind_ptr: *c.SQLLEN) LastError!void {
+        const result = c.SQLBindParameter(self.handle, parameter_number, @enumToInt(io_type), @enumToInt(value_type), @enumToInt(parameter_type), @sizeOf(@TypeOf(value)), @intCast(c.SQLSMALLINT, decimal_digits orelse 0), value, @sizeOf(@TypeOf(value)), str_len_or_ind_ptr);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.bindParameter passed invalid handle"),
@@ -162,17 +128,7 @@ pub const Statement = struct {
     }
 
     pub fn columns(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, table_name: []const u8, column_name: ?[]const u8) !void {
-        const result = c.SQLColumns(
-            self.handle, 
-            if (catalog_name) |cn| @intToPtr([*c]u8, @ptrToInt(cn.ptr)) else null, 
-            if (catalog_name) |cn| @intCast(c_short, cn.len) else 0, 
-            if (schema_name) |sn| @intToPtr([*c]u8, @ptrToInt(sn.ptr)) else null, 
-            if (schema_name) |sn| @intCast(c_short, sn.len) else 0, 
-            @intToPtr([*c]u8, @ptrToInt(table_name.ptr)), 
-            @intCast(c_short, table_name.len),
-            if (column_name) |cn| @intToPtr([*c]u8, @ptrToInt(cn.ptr)) else null,
-            if (column_name) |cn| @intCast(c_short, cn.len) else 0
-        );
+        const result = c.SQLColumns(self.handle, if (catalog_name) |cn| @intToPtr([*c]u8, @ptrToInt(cn.ptr)) else null, if (catalog_name) |cn| @intCast(c_short, cn.len) else 0, if (schema_name) |sn| @intToPtr([*c]u8, @ptrToInt(sn.ptr)) else null, if (schema_name) |sn| @intCast(c_short, sn.len) else 0, @intToPtr([*c]u8, @ptrToInt(table_name.ptr)), @intCast(c_short, table_name.len), if (column_name) |cn| @intToPtr([*c]u8, @ptrToInt(cn.ptr)) else null, if (column_name) |cn| @intCast(c_short, cn.len) else 0);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.columns passed invalid handle"),
@@ -190,15 +146,7 @@ pub const Statement = struct {
         errdefer allocator.free(string_attr);
 
         var numeric_attribute: c_longlong = 0;
-        const result = c.SQLColAttribute(
-            self.handle, 
-            @intCast(c_ushort, column_number), 
-            @enumToInt(attr), 
-            string_attr.ptr, 
-            string_attr_length + 1, 
-            &string_attr_length, 
-            &numeric_attribute
-        );
+        const result = c.SQLColAttribute(self.handle, @intCast(c_ushort, column_number), @enumToInt(attr), string_attr.ptr, string_attr_length + 1, &string_attr_length, &numeric_attribute);
 
         if (string_attr_length == 0) {
             allocator.free(string_attr);
@@ -245,23 +193,13 @@ pub const Statement = struct {
 
     pub fn describeColumn(self: *Statement, allocator: *Allocator, column_number: c_ushort) !odbc.ColumnDescriptor {
         var column_desc: odbc.ColumnDescriptor = undefined;
-        
+
         var name_length: c_short = 0;
         _ = c.SQLDescribeCol(self.handle, column_number, null, 0, &name_length, null, null, null, null);
 
         column_desc.name = try allocator.allocSentinel(u8, name_length, 0);
 
-        const result = c.SQLDescribeCol(
-            self.handle, 
-            column_number, 
-            column_desc.name.ptr, 
-            name_length + 1, 
-            &name_length, 
-            @ptrCast(*odbc.SQLSMALLINT, &column_desc.data_type), 
-            &column_desc.size, 
-            &column_desc.decimal_digits, 
-            @ptrCast(*odbc.SQLSMALLINT, &column_desc.nullable)
-        );
+        const result = c.SQLDescribeCol(self.handle, column_number, column_desc.name.ptr, name_length + 1, &name_length, @ptrCast(*odbc.SQLSMALLINT, &column_desc.data_type), &column_desc.size, &column_desc.decimal_digits, @ptrCast(*odbc.SQLSMALLINT, &column_desc.nullable));
 
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => column_desc,
@@ -273,15 +211,8 @@ pub const Statement = struct {
 
     pub fn describeParameter(self: *Statement, parameter_number: c_ushort) ReturnError!odbc.ParameterDescriptor {
         var param_desc: odbc.ParameterDescriptor = undefined;
-        
-        const result = c.SQLDescribeParam(
-            self.handle, 
-            parameter_number, 
-            @ptrCast(*odbc.SQLSMALLINT, &param_desc.data_type), 
-            &param_desc.size, 
-            &param_desc.decimal_digits, 
-            @ptrCast(*odbc.SQLSMALLINT, &param_desc.nullable)
-        );
+
+        const result = c.SQLDescribeParam(self.handle, parameter_number, @ptrCast(*odbc.SQLSMALLINT, &param_desc.data_type), &param_desc.size, &param_desc.decimal_digits, @ptrCast(*odbc.SQLSMALLINT, &param_desc.nullable));
 
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => param_desc,
@@ -347,15 +278,7 @@ pub const Statement = struct {
     }
 
     pub fn primaryKeys(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, table_name: []const u8) !void {
-        const result = c.SQLPrimaryKeys(
-            self.handle,
-            if (catalog_name) |cn| cn.ptr else null,
-            if (catalog_name) |cn| cn.len else 0,
-            if (schema_name) |sn| sn.ptr else null,
-            if (schema_name) |sn| sn.len else 0,
-            table_name.ptr,
-            table_name.len
-        );
+        const result = c.SQLPrimaryKeys(self.handle, if (catalog_name) |cn| cn.ptr else null, if (catalog_name) |cn| cn.len else 0, if (schema_name) |sn| sn.ptr else null, if (schema_name) |sn| sn.len else 0, table_name.ptr, table_name.len);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.primaryKeys passed invalid handle"),
@@ -364,29 +287,21 @@ pub const Statement = struct {
         };
     }
 
-    pub fn foreignKeys(
-        self: *Statement, 
-        pk_catalog_name: ?[]const u8, 
-        pk_schema_name: ?[]const u8, 
-        pk_table_name: ?[]const u8, 
-        fk_catalog_name: ?[]const u8, 
-        fk_schema_name: ?[]const u8, 
-        fk_table_name: ?[]const u8
-    ) !void {
+    pub fn foreignKeys(self: *Statement, pk_catalog_name: ?[]const u8, pk_schema_name: ?[]const u8, pk_table_name: ?[]const u8, fk_catalog_name: ?[]const u8, fk_schema_name: ?[]const u8, fk_table_name: ?[]const u8) !void {
         const result = c.SQLForeignKeys(
             self.handle,
             if (pk_catalog_name) |cn| cn.ptr else null,
-            if (pk_catalog_name) |cn| cn.len else 0,    
+            if (pk_catalog_name) |cn| cn.len else 0,
             if (pk_schema_name) |sn| sn.ptr else null,
-            if (pk_schema_name) |sn| sn.len else 0,    
+            if (pk_schema_name) |sn| sn.len else 0,
             if (pk_table_name) |tn| tn.ptr else null,
-            if (pk_table_name) |tn| tn.len else 0,    
+            if (pk_table_name) |tn| tn.len else 0,
             if (fk_catalog_name) |cn| cn.ptr else null,
-            if (fk_catalog_name) |cn| cn.len else 0,    
+            if (fk_catalog_name) |cn| cn.len else 0,
             if (fk_schema_name) |sn| sn.ptr else null,
-            if (fk_schema_name) |sn| sn.len else 0,    
+            if (fk_schema_name) |sn| sn.len else 0,
             if (fk_table_name) |tn| tn.ptr else null,
-            if (fk_table_name) |tn| tn.len else 0,    
+            if (fk_table_name) |tn| tn.len else 0,
         );
 
         return switch (@intToEnum(SqlReturn, result)) {
@@ -421,14 +336,7 @@ pub const Statement = struct {
         var bytes_retrieved: c_longlong = 0;
 
         fetch_loop: while (true) {
-            const result = c.SQLGetData(
-                self.handle, 
-                @intCast(c_ushort, column_number), 
-                @enumToInt(target_type), 
-                @ptrCast([*c]c_void, target_buffer.ptr), 
-                @intCast(c_longlong, target_buffer.len), 
-                &bytes_retrieved
-            );
+            const result = c.SQLGetData(self.handle, @intCast(c_ushort, column_number), @enumToInt(target_type), @ptrCast([*c]anyopaque, target_buffer.ptr), @intCast(c_longlong, target_buffer.len), &bytes_retrieved);
             const result_type = @intToEnum(SqlReturn, result);
             switch (result_type) {
                 .Success, .SuccessWithInfo, .NoData => {
@@ -437,7 +345,7 @@ pub const Statement = struct {
                         else => {
                             try result_data.appendSlice(target_buffer[0..bytes_retrieved]);
                             if (result_type == .SuccessWithInfo) {
-                                // SuccessWithInfo might indicate that only part of the column was retrieved, and in that case we need to 
+                                // SuccessWithInfo might indicate that only part of the column was retrieved, and in that case we need to
                                 // continue fetching the rest of it. If we're getting long data, SQLGetData will return NoData
                                 var error_buffer: [@sizeOf(odbc_error.SqlState) * 3]u8 = undefined;
                                 var fba = std.heap.FixedBufferAllocator.init(error_buffer);
@@ -454,7 +362,7 @@ pub const Statement = struct {
                             defer if (!target_type.isSlice()) allocator.free(data);
 
                             return std.mem.bytesToValue(target_type.toType(), data);
-                        }
+                        },
                     }
                 },
                 .InvalidHandle => @panic("Statement.getData passed invalid handle"),
@@ -467,7 +375,7 @@ pub const Statement = struct {
     pub fn getAttribute(self: *Statement, attr: Attribute) !AttributeValue {
         var result_buffer: [100]u8 = undefined;
         var string_length_result: u32 = 0;
-        const result = c.SQLGetStmtAttr(self.handle, @enumToInt(attr), @ptrCast(*c_void, &result_buffer), @intCast(u32, result_buffer.len), @ptrCast([*c]c_long, &string_length_result));
+        const result = c.SQLGetStmtAttr(self.handle, @enumToInt(attr), @ptrCast(*anyopaque, &result_buffer), @intCast(u32, result_buffer.len), @ptrCast([*c]c_long, &string_length_result));
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => attr.getValue(result_buffer[0..]),
             .InvalidHandle => @panic("Statement.getAttribute passed invalid handle"),
@@ -484,12 +392,12 @@ pub const Statement = struct {
             else => blk: {
                 var buffer: [100]u8 = undefined;
                 var fba = std.heap.FixedBufferAllocator.init(buffer[0..]);
-                
+
                 _ = try attr_value.valueAsBytes(&fba.allocator);
                 const int_value = std.mem.bytesAsValue(u64, buffer[0..@sizeOf(u64)]);
 
-                break :blk c.SQLSetStmtAttr(self.handle, @enumToInt(std.meta.activeTag(attr_value)), @intToPtr(?*c_void, @intCast(usize, int_value.*)), 0);
-            }
+                break :blk c.SQLSetStmtAttr(self.handle, @enumToInt(std.meta.activeTag(attr_value)), @intToPtr(?*anyopaque, @intCast(usize, int_value.*)), 0);
+            },
         };
 
         return switch (@intToEnum(SqlReturn, result)) {
@@ -541,7 +449,7 @@ pub const Statement = struct {
         };
     }
 
-    pub fn paramData(self: *Statement, value_ptr: *c_void) !void {
+    pub fn paramData(self: *Statement, value_ptr: *anyopaque) !void {
         const result = c.SQLParamData(self.handle, &value_ptr);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
@@ -552,17 +460,7 @@ pub const Statement = struct {
     }
 
     pub fn procedureColumns(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, procedure_name: []const u8, column_name: []const u8) !void {
-        const result = c.SQLProcedureColumns(
-            self.handle,
-            if (catalog_name) |cn| cn.ptr else null,
-            if (catalog_name) |cn| @intCast(c.SQLSMALLINT, cn.len) else 0,
-            if (schema_name) |sn| sn.ptr else null,
-            if (schema_name) |sn| @intCast(c.SQLSMALLINT, sn.len) else 0,
-            procedure_name.ptr,
-            @intCast(c.SQLSMALLINT, procedure_name.len),
-            column_name.ptr,
-            @intCast(c.SQLSMALLINT, column_name.len)
-        );
+        const result = c.SQLProcedureColumns(self.handle, if (catalog_name) |cn| cn.ptr else null, if (catalog_name) |cn| @intCast(c.SQLSMALLINT, cn.len) else 0, if (schema_name) |sn| sn.ptr else null, if (schema_name) |sn| @intCast(c.SQLSMALLINT, sn.len) else 0, procedure_name.ptr, @intCast(c.SQLSMALLINT, procedure_name.len), column_name.ptr, @intCast(c.SQLSMALLINT, column_name.len));
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.procedureColumns passed invalid handle"),
@@ -573,15 +471,7 @@ pub const Statement = struct {
 
     /// Return the list of procedure names in a data source.
     pub fn procedures(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, procedure_name: []const u8) !void {
-        const result = c.SQLProcedures(
-            self.handle,
-            if (catalog_name) |cn| cn.ptr else null,
-            if (catalog_name) |cn| @intCast(c.SQLSMALLINT, cn.len) else 0,
-            if (schema_name) |sn| sn.ptr else null,
-            if (schema_name) |sn| @intCast(c.SQLSMALLINT, sn.len) else 0,
-            procedure_name.ptr,
-            @intCast(c.SQLSMALLINT, procedure_name.len)
-        );
+        const result = c.SQLProcedures(self.handle, if (catalog_name) |cn| cn.ptr else null, if (catalog_name) |cn| @intCast(c.SQLSMALLINT, cn.len) else 0, if (schema_name) |sn| sn.ptr else null, if (schema_name) |sn| @intCast(c.SQLSMALLINT, sn.len) else 0, procedure_name.ptr, @intCast(c.SQLSMALLINT, procedure_name.len));
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.procedures passed invalid handle"),
@@ -591,7 +481,7 @@ pub const Statement = struct {
     }
 
     pub fn putData(self: *Statement, data: anytype, str_len_or_ind_ptr: c_longlong) !void {
-        const result = c.SQLPutData(self.handle, @ptrCast([*c]c_void, &data), str_len_or_ind_ptr);
+        const result = c.SQLPutData(self.handle, @ptrCast([*c]anyopaque, &data), str_len_or_ind_ptr);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.putData passed invalid handle"),
@@ -630,27 +520,8 @@ pub const Statement = struct {
         };
     }
 
-    pub fn specialColumns(
-        self: *Statement, 
-        identifier_type: odbc.ColumnIdentifierType, 
-        catalog_name: ?[]const u8, 
-        schema_name: ?[]const u8, 
-        table_name: []const u8, 
-        row_id_scope: odbc.RowIdScope, 
-        nullable: odbc.Nullable
-    ) !void {
-        const result = c.SQLSpecialColumns(
-            self.handle,
-            @enumToInt(identifier_type),
-            if (catalog_name) |cn| cn.ptr else null,
-            if (catalog_name) |cn| @intCast(c.SQLSMALLINT, cn.len) else 0,
-            if (schema_name) |sn| sn.ptr else null,
-            if (schema_name) |sn| @intCast(c.SQLSMALLINT, sn.len) else 0,
-            table_name.ptr,
-            @intCast(c.SQLSMALLINT, table_name.len),
-            @enumToInt(row_id_scope),
-            @enumToInt(nullable)
-        );
+    pub fn specialColumns(self: *Statement, identifier_type: odbc.ColumnIdentifierType, catalog_name: ?[]const u8, schema_name: ?[]const u8, table_name: []const u8, row_id_scope: odbc.RowIdScope, nullable: odbc.Nullable) !void {
+        const result = c.SQLSpecialColumns(self.handle, @enumToInt(identifier_type), if (catalog_name) |cn| cn.ptr else null, if (catalog_name) |cn| @intCast(c.SQLSMALLINT, cn.len) else 0, if (schema_name) |sn| sn.ptr else null, if (schema_name) |sn| @intCast(c.SQLSMALLINT, sn.len) else 0, table_name.ptr, @intCast(c.SQLSMALLINT, table_name.len), @enumToInt(row_id_scope), @enumToInt(nullable));
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.specialColumns passed invalid handle"),
@@ -660,17 +531,7 @@ pub const Statement = struct {
     }
 
     pub fn statistics(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, table_name: []const u8, unique: bool, reserved: odbc.Reserved) !void {
-        const result = c.SQLStatistics(
-            self.handle, 
-            if (catalog_name) |cn| cn.ptr else null,
-            if (catalog_name) |cn| @intCast(c.SQLSMALLINT, cn.len) else 0,
-            if (schema_name) |sn| sn.ptr else null,
-            if (schema_name) |sn| @intCast(c.SQLSMALLINT, sn.len) else 0,
-            table_name.ptr,
-            @intCast(c.SQLSMALLINT, table_name.len),
-            if (unique) c.SQL_INDEX_UNIQUE else c.SQL_INDEX_ALL,
-            @enumToInt(reserved)
-        );
+        const result = c.SQLStatistics(self.handle, if (catalog_name) |cn| cn.ptr else null, if (catalog_name) |cn| @intCast(c.SQLSMALLINT, cn.len) else 0, if (schema_name) |sn| sn.ptr else null, if (schema_name) |sn| @intCast(c.SQLSMALLINT, sn.len) else 0, table_name.ptr, @intCast(c.SQLSMALLINT, table_name.len), if (unique) c.SQL_INDEX_UNIQUE else c.SQL_INDEX_ALL, @enumToInt(reserved));
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.statistics passed invalid handle"),
@@ -680,15 +541,7 @@ pub const Statement = struct {
     }
 
     pub fn tablePrivileges(self: *Statement, catalog_name: ?[]const u8, schema_name: ?[]const u8, table_name: []const u8) !void {
-        const result = c.SQLTablePrivileges(
-            self.handle,
-            if (catalog_name) |cn| @intToPtr([*c]u8, @ptrToInt(cn.ptr)) else null,
-            if (catalog_name) |cn| @intCast(c.SQLSMALLINT, cn.len) else 0,
-            if (schema_name) |sn| @intToPtr([*c]u8, @ptrToInt(sn.ptr)) else null,
-            if (schema_name) |sn| @intCast(c.SQLSMALLINT, sn.len) else 0,
-            @intToPtr([*c]u8, @ptrToInt(table_name.ptr)),
-            @intCast(c.SQLSMALLINT, table_name.len)
-        );
+        const result = c.SQLTablePrivileges(self.handle, if (catalog_name) |cn| @intToPtr([*c]u8, @ptrToInt(cn.ptr)) else null, if (catalog_name) |cn| @intCast(c.SQLSMALLINT, cn.len) else 0, if (schema_name) |sn| @intToPtr([*c]u8, @ptrToInt(sn.ptr)) else null, if (schema_name) |sn| @intCast(c.SQLSMALLINT, sn.len) else 0, @intToPtr([*c]u8, @ptrToInt(table_name.ptr)), @intCast(c.SQLSMALLINT, table_name.len));
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
             .InvalidHandle => @panic("Statement.tablePrivileges passed invalid handle"),
@@ -740,5 +593,4 @@ pub const Statement = struct {
     pub fn getDiagnosticRecords(self: *Statement, allocator: *Allocator) ![]odbc_error.DiagnosticRecord {
         return try odbc_error.getDiagnosticRecords(allocator, odbc.HandleType.Statement, self.handle);
     }
-
 };
