@@ -74,7 +74,7 @@ pub const Connection = struct {
     /// contains the information missing from the previous call.
     ///
     /// If the user passes all of the necessary parameters, then a connection is established and `browseConnect` will return `null`.
-    pub fn browseConnect(self: *Connection, allocator: *Allocator, partial_connection_string: []const u8) !?[]const u8 {
+    pub fn browseConnect(self: *Connection, allocator: Allocator, partial_connection_string: []const u8) !?[]const u8 {
         var out_string_len: c.SQLSMALLINT = 0;
         var out_string_buffer = try allocator.alloc(u8, 100);
         errdefer allocator.free(out_string_buffer);
@@ -158,7 +158,7 @@ pub const Connection = struct {
     }
 
     /// Get all of the functions supported by this driver.
-    pub fn getAllEnabledFunctions(self: *Connection, allocator: *Allocator) ![]odbc.FunctionId {
+    pub fn getAllEnabledFunctions(self: *Connection, allocator: Allocator) ![]odbc.FunctionId {
         var result_buffer: [c.SQL_API_ODBC3_ALL_FUNCTIONS_SIZE]c.SQLUSMALLINT = undefined;
         var result_list = std.ArrayList(odbc.FunctionId).init(allocator);
         const result = c.SQLGetFunctions(self.handle, c.SQL_API_ODBC3_ALL_FUNCTIONS, @ptrCast([*c]c_ushort, &result_buffer));
@@ -180,7 +180,7 @@ pub const Connection = struct {
     }
 
     /// Given a SQL statement, return the same statement as modified by the current driver.
-    pub fn nativeSql(self: *Connection, allocator: *Allocator, sql_statement: []const u8) ![]const u8 {
+    pub fn nativeSql(self: *Connection, allocator: Allocator, sql_statement: []const u8) ![]const u8 {
         var out_statement_len: c.SQLINTEGER = 0;
         // Allocate a buffer for the out string, allocate the same number of chars as the in string because it's likely to be
         // close
@@ -204,7 +204,7 @@ pub const Connection = struct {
         }
     }
 
-    pub fn getInfo(self: *Connection, comptime info_type: InformationType, allocator: *Allocator) !InformationTypeValue {
+    pub fn getInfo(self: *Connection, comptime info_type: InformationType, allocator: Allocator) !InformationTypeValue {
         var result_buffer = try allocator.alloc(u8, 200);
         errdefer allocator.free(result_buffer);
 
@@ -231,7 +231,7 @@ pub const Connection = struct {
         }
     }
 
-    pub fn getAttribute(self: *Connection, comptime attribute: Attribute, allocator: *Allocator) !?AttributeValue {
+    pub fn getAttribute(self: *Connection, comptime attribute: Attribute, allocator: Allocator) !?AttributeValue {
         var value = try allocator.alloc(u8, 100);
         defer allocator.free(value);
 
@@ -259,7 +259,7 @@ pub const Connection = struct {
             .CurrentCatalog => |v| c.SQLSetConnectAttr(self.handle, @enumToInt(value), v.ptr, @intCast(c_int, v.len)),
             .Tracefile, .TranslateLib => |v| c.SQLSetConnectAttr(self.handle, @enumToInt(value), v.ptr, @intCast(c_int, v.len)),
             else => blk: {
-                // For integer attributes, get the value and then cast it to ?*c_void to pass it on
+                // For integer attributes, get the value and then cast it to ?*anyopaque to pass it on
                 var result_buffer: [@sizeOf(u32)]u8 = undefined;
                 var fba = std.heap.FixedBufferAllocator.init(result_buffer[0..]);
                 _ = try value.getValue(fba.allocator());
@@ -279,11 +279,11 @@ pub const Connection = struct {
         return odbc_error.getLastError(odbc.HandleType.Connection, self.handle);
     }
 
-    pub fn getErrors(self: *Connection, allocator: *Allocator) ![]odbc_error.SqlState {
+    pub fn getErrors(self: *Connection, allocator: Allocator) ![]odbc_error.SqlState {
         return try odbc_error.getErrors(allocator, odbc.HandleType.Connection, self.handle);
     }
 
-    pub fn getDiagnosticRecords(self: *Connection, allocator: *Allocator) ![]odbc_error.DiagnosticRecord {
+    pub fn getDiagnosticRecords(self: *Connection, allocator: Allocator) ![]odbc_error.DiagnosticRecord {
         return try odbc_error.getDiagnosticRecords(allocator, odbc.HandleType.Connection, self.handle);
     }
 };

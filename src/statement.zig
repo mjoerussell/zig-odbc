@@ -191,7 +191,7 @@ pub const Statement = struct {
         }
     }
 
-    pub fn describeColumn(self: *Statement, allocator: *Allocator, column_number: c_ushort) !odbc.ColumnDescriptor {
+    pub fn describeColumn(self: *Statement, allocator: Allocator, column_number: c_ushort) !odbc.ColumnDescriptor {
         var column_desc: odbc.ColumnDescriptor = undefined;
 
         var name_length: c_short = 0;
@@ -312,7 +312,7 @@ pub const Statement = struct {
         };
     }
 
-    pub fn getCursorName(self: *Statement, allocator: *Allocator) ![]const u8 {
+    pub fn getCursorName(self: *Statement, allocator: Allocator) ![]const u8 {
         var name_length: c_short = 0;
         _ = c.SQLGetCursorName(self.handle, null, 0, &name_length);
 
@@ -328,7 +328,7 @@ pub const Statement = struct {
         };
     }
 
-    pub fn getData(self: *Statement, allocator: *Allocator, column_number: usize, comptime target_type: odbc.CType) !?target_type.toType() {
+    pub fn getData(self: *Statement, allocator: Allocator, column_number: usize, comptime target_type: odbc.CType) !?target_type.toType() {
         var result_data = try std.ArrayList(u8).initCapacity(allocator, 500);
         errdefer result_data.deinit();
 
