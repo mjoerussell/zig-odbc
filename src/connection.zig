@@ -18,13 +18,13 @@ pub const Connection = struct {
     pub const InformationType = odbc.InformationType;
     pub const InformationTypeValue = odbc.InformationTypeValue;
 
-    handle: *c_void,
+    handle: *anyopaque,
 
     connected: bool = false,
 
     pub fn init(environment: *Environment) ReturnError!Connection {
         var result: Connection = undefined;
-        const alloc_result = c.SQLAllocHandle(@enumToInt(HandleType.Connection), environment.handle, @ptrCast([*c]?*c_void, &result.handle));
+        const alloc_result = c.SQLAllocHandle(@enumToInt(HandleType.Connection), environment.handle, @ptrCast([*c]?*anyopaque, &result.handle));
         return switch (@intToEnum(SqlReturn, alloc_result)) {
             .InvalidHandle => error.InvalidHandle,
             .Error => error.Error,
@@ -42,18 +42,10 @@ pub const Connection = struct {
             else => self.getLastError(),
         };
     }
-    
+
     /// Try to connect to a data source using a username and password.
     pub fn connect(self: *Connection, server_name: []const u8, user_name: []const u8, password: []const u8) !void {
-        const result = c.SQLConnect(
-            self.handle, 
-            @intToPtr([*c]u8, @ptrToInt(server_name.ptr)), 
-            @intCast(i16, server_name.len), 
-            @intToPtr([*c]u8, @ptrToInt(user_name.ptr)), 
-            @intCast(i16, user_name.len), 
-            @intToPtr([*c]u8, @ptrToInt(password.ptr)), 
-            @intCast(i16, password.len)
-        );
+        const result = c.SQLConnect(self.handle, @intToPtr([*c]u8, @ptrToInt(server_name.ptr)), @intCast(i16, server_name.len), @intToPtr([*c]u8, @ptrToInt(user_name.ptr)), @intCast(i16, user_name.len), @intToPtr([*c]u8, @ptrToInt(password.ptr)), @intCast(i16, password.len));
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {
                 self.connected = true;
@@ -67,16 +59,7 @@ pub const Connection = struct {
     /// should handle missing parameters in the connection string. For most non-interactive programs, the appropriate completion
     /// type is `.NoPrompt`.
     pub fn connectExtended(self: *Connection, connection_string: []const u8, completion: odbc.DriverCompletion) !void {
-        const result = c.SQLDriverConnect(
-            self.handle, 
-            null, 
-            @intToPtr([*c]u8, @ptrToInt(connection_string.ptr)), 
-            @intCast(c_short, connection_string.len), 
-            null, 
-            0, 
-            null, 
-            @enumToInt(completion)
-        );
+        const result = c.SQLDriverConnect(self.handle, null, @intToPtr([*c]u8, @ptrToInt(connection_string.ptr)), @intCast(c_short, connection_string.len), null, 0, null, @enumToInt(completion));
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {
                 self.connected = true;
@@ -123,7 +106,7 @@ pub const Connection = struct {
                         continue :run_loop;
                     },
                     else => |err| return err,
-                }
+                },
             }
         }
     }
@@ -133,7 +116,7 @@ pub const Connection = struct {
     pub fn disconnect(self: *Connection) !void {
         if (!self.connected) return;
         const result = c.SQLDisconnect(self.handle);
-        return switch(@intToEnum(SqlReturn, result)) {
+        return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {
                 self.connected = false;
             },
@@ -170,7 +153,7 @@ pub const Connection = struct {
         const result = c.SQLGetFunctions(self.handle, @enumToInt(function_id), &supported);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => supported == c.SQL_TRUE,
-            else => false
+            else => false,
         };
     }
 
@@ -216,16 +199,15 @@ pub const Connection = struct {
                         continue :run_loop;
                     },
                     else => |err| return err,
-                }
+                },
             }
         }
-        
     }
 
     pub fn getInfo(self: *Connection, comptime info_type: InformationType, allocator: *Allocator) !InformationTypeValue {
         var result_buffer = try allocator.alloc(u8, 200);
         errdefer allocator.free(result_buffer);
-        
+
         var result_string_length: c.SQLSMALLINT = 0;
         run_loop: while (true) {
             const result = c.SQLGetInfo(self.handle, @enumToInt(info_type), result_buffer.ptr, @intCast(c.SQLSMALLINT, result_buffer.len), &result_string_length);
@@ -244,7 +226,7 @@ pub const Connection = struct {
                         continue :run_loop;
                     },
                     else => |err| return err,
-                }
+                },
             }
         }
     }
@@ -266,7 +248,7 @@ pub const Connection = struct {
                         continue :attr_loop;
                     },
                     else => |err| return err,
-                }
+                },
             }
         }
     }
@@ -274,7 +256,7 @@ pub const Connection = struct {
     pub fn setAttribute(self: *Connection, value: AttributeValue) !void {
         const result = switch (value) {
             // For string attributes, pass the pointers to the strings directly
-            .CurrentCatalog => |v| c.SQLSetConnectAttr(self.handle, @enumToInt(value), v.ptr, @intCast(c_int, v.len)), 
+            .CurrentCatalog => |v| c.SQLSetConnectAttr(self.handle, @enumToInt(value), v.ptr, @intCast(c_int, v.len)),
             .Tracefile, .TranslateLib => |v| c.SQLSetConnectAttr(self.handle, @enumToInt(value), v.ptr, @intCast(c_int, v.len)),
             else => blk: {
                 // For integer attributes, get the value and then cast it to ?*c_void to pass it on
@@ -283,8 +265,8 @@ pub const Connection = struct {
                 _ = try value.getValue(fba.allocator());
 
                 const int_val = std.mem.bytesToValue(u32, &result_buffer);
-                break :blk c.SQLSetConnectAttr(self.handle, @enumToInt(std.meta.activeTag(value)), @intToPtr(?*c_void, int_val), 0);
-            }
+                break :blk c.SQLSetConnectAttr(self.handle, @enumToInt(std.meta.activeTag(value)), @intToPtr(?*anyopaque, int_val), 0);
+            },
         };
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},

@@ -1,6 +1,6 @@
 const builtin = @import("builtin");
 
-const c_decls =  if (builtin.os.tag == .windows)
+const c_decls = if (builtin.os.tag == .windows)
     @cImport({
         @cDefine("__MSABI_LONG(x)", "(long)(x)");
         @cInclude("windows.h");
@@ -22,7 +22,7 @@ const extra_decls = blk: {
                 pub const SQL_OV_ODBC3_80 = 380;
                 pub const SQL_CP_DRIVER_AWARE = 3;
                 pub const SQL_PARAM_DATA_AVAILABLE = 101;
-            }; 
+            };
         } else {
             break :blk struct {};
         }

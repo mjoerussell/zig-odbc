@@ -17,7 +17,7 @@ pub fn build(b: *Builder) void {
     lib.linkLibC();
 
     const odbc_library_name = if (builtin.os.tag == .windows) "odbc32" else "odbc";
-    
+
     if (builtin.os.tag == .macos) {
         lib.addIncludeDir("/usr/local/include");
         lib.addIncludeDir("/usr/local/lib");
@@ -41,5 +41,4 @@ pub fn build(b: *Builder) void {
         file_tests.linkSystemLibrary(odbc_library_name);
         test_cmd.dependOn(&file_tests.step);
     }
-
 }
