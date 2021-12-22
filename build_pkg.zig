@@ -11,7 +11,7 @@ pub fn buildPkg(exe: *LibExeObjStep, package_name: []const u8) void {
         exe.addIncludeDir("/usr/local/include");
         exe.addIncludeDir("/usr/local/lib");
     }
-    
+
     exe.linkSystemLibrary(odbc_library_name);
 
     const self_pkg = Pkg{

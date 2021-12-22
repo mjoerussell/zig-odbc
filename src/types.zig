@@ -14,23 +14,9 @@ const unionInitEnum = util.unionInitEnum;
 const sliceToValue = util.sliceToValue;
 
 /// Return codes that might be returned from ODBC functions.
-pub const SqlReturn = enum(odbc.SQLRETURN) {
-    Success = odbc.SQL_SUCCESS,
-    SuccessWithInfo = odbc.SQL_SUCCESS_WITH_INFO,
-    NeedsData = odbc.SQL_NEED_DATA,
-    StillExecuting = odbc.SQL_STILL_EXECUTING,
-    Error = odbc.SQL_ERROR,
-    InvalidHandle = odbc.SQL_INVALID_HANDLE,
-    NoData = odbc.SQL_NO_DATA,
-    ParamDataAvailable = odbc.SQL_PARAM_DATA_AVAILABLE
-};
+pub const SqlReturn = enum(odbc.SQLRETURN) { Success = odbc.SQL_SUCCESS, SuccessWithInfo = odbc.SQL_SUCCESS_WITH_INFO, NeedsData = odbc.SQL_NEED_DATA, StillExecuting = odbc.SQL_STILL_EXECUTING, Error = odbc.SQL_ERROR, InvalidHandle = odbc.SQL_INVALID_HANDLE, NoData = odbc.SQL_NO_DATA, ParamDataAvailable = odbc.SQL_PARAM_DATA_AVAILABLE };
 
-pub const HandleType = enum(odbc.SQLSMALLINT) {
-    Environment = odbc.SQL_HANDLE_ENV,
-    Connection = odbc.SQL_HANDLE_DBC,
-    Statement = odbc.SQL_HANDLE_STMT,
-    Descriptor = odbc.SQL_HANDLE_DESC
-};
+pub const HandleType = enum(odbc.SQLSMALLINT) { Environment = odbc.SQL_HANDLE_ENV, Connection = odbc.SQL_HANDLE_DBC, Statement = odbc.SQL_HANDLE_STMT, Descriptor = odbc.SQL_HANDLE_DESC };
 
 pub const Driver = struct {
     description: []const u8,
@@ -42,46 +28,37 @@ pub const Driver = struct {
     }
 };
 
-pub const DataSource = struct {
-    server_name: []const u8, description: []const u8
-};
+pub const DataSource = struct { server_name: []const u8, description: []const u8 };
 
-pub const DriverCompletion = enum(c_ushort) {
+pub const DriverCompletion = enum(c_ushort) { 
     /// If the user does not provide enough information in the connection string to establish a connection,
     /// return an error.
-    NoPrompt = odbc.SQL_DRIVER_NOPROMPT,
+    NoPrompt = odbc.SQL_DRIVER_NOPROMPT, 
     /// If the user does not provide enough information in the connection string to establish a connection,
     /// display a window prompt that will allow them to fill out any other information.
-    Complete = odbc.SQL_DRIVER_COMPLETE,
+    Complete = odbc.SQL_DRIVER_COMPLETE, 
     /// Always prompt the user for connection information, using the values provided in the connection string
     /// as default values.
-    Prompt = odbc.SQL_DRIVER_PROMPT,
+    Prompt = odbc.SQL_DRIVER_PROMPT, 
     /// If the user does not provide enough information in the connection string to establish a connection,
     /// display a window prompt that will allow them to fill out only fields that are required in order to connection.
-    CompleteRequired = odbc.SQL_DRIVER_COMPLETE_REQUIRED
+    CompleteRequired = odbc.SQL_DRIVER_COMPLETE_REQUIRED 
 };
 
-pub const Direction = enum(c_ushort) {
+pub const Direction = enum(c_ushort) { 
     /// Fetch the next record in the list. If this is used for the first fetch call, then the first record
     /// will be returned. If `FetchFirstUser` was used before this, then this will get the next user record.
     /// The same is true for `FetchFirstSystem`.
-    FetchNext = odbc.SQL_FETCH_NEXT,
+    FetchNext = odbc.SQL_FETCH_NEXT, 
     /// Fetch the first record in the list.
-    FetchFirst = odbc.SQL_FETCH_FIRST,
+    FetchFirst = odbc.SQL_FETCH_FIRST, 
     /// Fetch the first user record.
-    FetchFirstUser = odbc.SQL_FETCH_FIRST_USER,
+    FetchFirstUser = odbc.SQL_FETCH_FIRST_USER, 
     /// Fetch the first system record.
-    FetchFirstSystem = odbc.SQL_FETCH_FIRST_SYSTEM
+    FetchFirstSystem = odbc.SQL_FETCH_FIRST_SYSTEM 
 };
 
-pub const DiagnosticIdentifier = enum(odbc.SQLSMALLINT) {
-    CursorRowCount = odbc.SQL_DIAG_CURSOR_ROW_COUNT,
-    DynamicFunction = odbc.SQL_DIAG_DYNAMIC_FUNCTION,
-    DynamicFunctionCode = odbc.SQL_DIAG_DYNAMIC_FUNCTION_CODE,
-    Number = odbc.SQL_DIAG_NUMBER,
-    ReturnCode = odbc.SQL_DIAG_RETURNCODE,
-    RowCount = odbc.SQL_DIAG_ROW_COUNT
-};
+pub const DiagnosticIdentifier = enum(odbc.SQLSMALLINT) { CursorRowCount = odbc.SQL_DIAG_CURSOR_ROW_COUNT, DynamicFunction = odbc.SQL_DIAG_DYNAMIC_FUNCTION, DynamicFunctionCode = odbc.SQL_DIAG_DYNAMIC_FUNCTION_CODE, Number = odbc.SQL_DIAG_NUMBER, ReturnCode = odbc.SQL_DIAG_RETURNCODE, RowCount = odbc.SQL_DIAG_ROW_COUNT };
 
 pub const Nullable = enum(i32) {
     Nullable = odbc.SQL_NULLABLE,
@@ -127,10 +104,7 @@ pub const EnvironmentAttributeValue = union(EnvironmentAttribute) {
         OnePerEnvironment = odbc.SQL_CP_DRIVER_AWARE,
     };
 
-    pub const ConnectionPoolMatch = enum(u32) {
-        Strict = odbc.SQL_CP_STRICT_MATCH,
-        Relaxed = odbc.SQL_CP_RELAXED_MATCH
-    };
+    pub const ConnectionPoolMatch = enum(u32) { Strict = odbc.SQL_CP_STRICT_MATCH, Relaxed = odbc.SQL_CP_RELAXED_MATCH };
 
     pub const OdbcVersion = enum(i32) {
         Odbc2 = odbc.SQL_OV_ODBC2,
@@ -144,11 +118,11 @@ pub const EnvironmentAttributeValue = union(EnvironmentAttribute) {
             .ConnectionPool => |v| @enumToInt(v),
             .ConnectionPoolMatch => |v| @enumToInt(v),
             .OdbcVersion => |v| @intCast(u32, @enumToInt(v)),
-            .OutputNts => |nts| if (nts) @as(u32, 1) else @as(u32, 0)
+            .OutputNts => |nts| if (nts) @as(u32, 1) else @as(u32, 0),
         };
 
         return @intCast(u32, val);
-    } 
+    }
 };
 
 pub const ConnectionAttribute = enum(i32) {
@@ -189,8 +163,8 @@ pub const ConnectionAttribute = enum(i32) {
             .PacketSize => sliceToValue(u32, bytes),
             .QuietMode => sliceToValue(odbc.HWND, bytes),
             .Trace => sliceToValue(u32, bytes) == odbc.SQL_OPT_TRACE_ON,
-            .Tracefile => bytes[0..:0],
-            .TranslateLib => bytes[0..:0],
+            .Tracefile => bytes[0.. :0],
+            .TranslateLib => bytes[0.. :0],
             .TranslateOption => sliceToValue(u32, bytes),
             .TransactionIsolation => sliceToValue(u32, bytes),
         });
@@ -212,21 +186,14 @@ pub const ConnectionAttributeValue = union(ConnectionAttribute) {
     PacketSize: u32,
     QuietMode: odbc.HWND,
     Trace: bool,
-    Tracefile: [:0] u8,
+    Tracefile: [:0]u8,
     TranslateLib: [:0]u8,
     TranslateOption: u32,
     TransactionIsolation: u32,
 
-    pub const AccessMode = enum(u32) {
-        ReadOnly = odbc.SQL_MODE_READ_ONLY,
-        ReadWrite = odbc.SQL_MODE_READ_WRITE
-    };
+    pub const AccessMode = enum(u32) { ReadOnly = odbc.SQL_MODE_READ_ONLY, ReadWrite = odbc.SQL_MODE_READ_WRITE };
 
-    pub const OdbcCursors = enum(usize) {
-        UseOdbc = odbc.SQL_CUR_USE_ODBC,
-        UseIfNeeded = odbc.SQL_CUR_USE_IF_NEEDED,
-        UseDriver = odbc.SQL_CUR_USE_DRIVER
-    };
+    pub const OdbcCursors = enum(usize) { UseOdbc = odbc.SQL_CUR_USE_ODBC, UseIfNeeded = odbc.SQL_CUR_USE_IF_NEEDED, UseDriver = odbc.SQL_CUR_USE_DRIVER };
 
     pub fn getValue(self: ConnectionAttributeValue, allocator: std.mem.Allocator) ![]u8 {
         const value_buffer: []u8 = switch (self) {
@@ -250,14 +217,13 @@ pub const ConnectionAttributeValue = union(ConnectionAttribute) {
             .Tracefile => |v| v,
             .TranslateLib => |v| v,
             .TranslateOption => |v| toBytes(v)[0..],
-            .TransactionIsolation => |v| toBytes(v)[0..]
+            .TransactionIsolation => |v| toBytes(v)[0..],
         };
 
         const result_buffer = try allocator.alloc(u8, value_buffer.len);
         std.mem.copy(u8, result_buffer, value_buffer);
         return result_buffer;
     }
-
 };
 
 pub const FunctionId = enum(c_ushort) {
@@ -316,7 +282,7 @@ pub const FunctionId = enum(c_ushort) {
     SQLDescribeParam = odbc.SQL_API_SQLDESCRIBEPARAM,
     SQLDriverConnect = odbc.SQL_API_SQLDRIVERCONNECT,
     SQLForeignKeys = odbc.SQL_API_SQLFOREIGNKEYS,
-    SQLMoreResults = odbc.SQL_API_SQLMORERESULTS, 
+    SQLMoreResults = odbc.SQL_API_SQLMORERESULTS,
     SQLNativeSql = odbc.SQL_API_SQLNATIVESQL,
     SQLNumParams = odbc.SQL_API_SQLNUMPARAMS,
     SQLPrimaryKeys = odbc.SQL_API_SQLPRIMARYKEYS,
@@ -366,10 +332,10 @@ pub const InformationType = enum(c_ushort) {
     StaticCursorAttributes1 = odbc.SQL_STATIC_CURSOR_ATTRIBUTES1,
     StaticCursorAttributes2 = odbc.SQL_STATIC_CURSOR_ATTRIBUTES2,
     // DBMS Product Information
-    DatabaseName = odbc.SQL_DATABASE_NAME, 
-    DBMSName = odbc.SQL_DBMS_NAME, 
+    DatabaseName = odbc.SQL_DATABASE_NAME,
+    DBMSName = odbc.SQL_DBMS_NAME,
     DBMSVersion = odbc.SQL_DBMS_VER,
-    // Data Source Information 
+    // Data Source Information
     AccessibleProcedures = odbc.SQL_ACCESSIBLE_PROCEDURES,
     AccessibleTables = odbc.SQL_ACCESSIBLE_TABLES,
     BookmarkPersistence = odbc.SQL_BOOKMARK_PERSISTENCE,
@@ -461,7 +427,7 @@ pub const InformationType = enum(c_ushort) {
     MaxTableNameLength = odbc.SQL_MAX_TABLE_NAME_LEN,
     MaxTablesInSelect = odbc.SQL_MAX_TABLES_IN_SELECT,
     MaxUserNameLength = odbc.SQL_MAX_USER_NAME_LEN,
-    // Scalar Function Information 
+    // Scalar Function Information
     ConvertFunctions = odbc.SQL_CONVERT_FUNCTIONS,
     NumericFunctions = odbc.SQL_NUMERIC_FUNCTIONS,
     StringFunctions = odbc.SQL_STRING_FUNCTIONS,
@@ -545,18 +511,12 @@ pub const InformationType = enum(c_ushort) {
             .PosOperations => InformationTypeValue.PositionOperations.applyBitmask(sliceToValue(c_ushort, bytes)),
             .TimeDateFunctions => InformationTypeValue.TimedateFunctions.applyBitmask(sliceToValue(u32, bytes)),
             // Cursor Attributes bitmask attributes
-            .DynamicCursorAttributes1, .ForwardOnlyCursorAttributes1, 
-            .KeysetCursorAttributes1, .StaticCursorAttributes1 => InformationTypeValue.CursorAttributes1.applyBitmask(sliceToValue(u32, bytes)),
-            .DynamicCursorAttributes2, .ForwardOnlyCursorAttributes2,
-            .KeysetCursorAttributes2, .StaticCursorAttributes2 => InformationTypeValue.CursorAttributes2.applyBitmask(sliceToValue(u32, bytes)),
+            .DynamicCursorAttributes1, .ForwardOnlyCursorAttributes1, .KeysetCursorAttributes1, .StaticCursorAttributes1 => InformationTypeValue.CursorAttributes1.applyBitmask(sliceToValue(u32, bytes)),
+            .DynamicCursorAttributes2, .ForwardOnlyCursorAttributes2, .KeysetCursorAttributes2, .StaticCursorAttributes2 => InformationTypeValue.CursorAttributes2.applyBitmask(sliceToValue(u32, bytes)),
             // TimeDate interval bitmask attributes.
             .TimeDateAddIntervals, .TimeDateDiffIntervals => InformationTypeValue.TimedateIntervals.applyBitmask(sliceToValue(u32, bytes)),
             // Supported conversions bitmask attributes
-            .ConvertBigint, .ConvertBinary, .ConvertBit,
-            .ConvertChar, .ConvertDate, .ConvertDecimal, .ConvertDouble, .ConvertFloat, .ConvertInteger,
-            .ConvertIntervalDayTime, .ConvertIntervalYearMonth, .ConvertLongVarBinary, .ConvertLongVarChar, .ConvertNumeric,
-            .ConvertReal, .ConvertSmallInt, .ConvertTime, .ConvertTimestamp, .ConvertTinyInt, .ConvertVarBinary,
-            .ConvertVarChar => InformationTypeValue.SupportedConversion.applyBitmask(sliceToValue(u32, bytes)),
+            .ConvertBigint, .ConvertBinary, .ConvertBit, .ConvertChar, .ConvertDate, .ConvertDecimal, .ConvertDouble, .ConvertFloat, .ConvertInteger, .ConvertIntervalDayTime, .ConvertIntervalYearMonth, .ConvertLongVarBinary, .ConvertLongVarChar, .ConvertNumeric, .ConvertReal, .ConvertSmallInt, .ConvertTime, .ConvertTimestamp, .ConvertTinyInt, .ConvertVarBinary, .ConvertVarChar => InformationTypeValue.SupportedConversion.applyBitmask(sliceToValue(u32, bytes)),
             // Assorted enum attributes
             .AsyncMode => @intToEnum(InformationTypeValue.AsyncMode, sliceToValue(u32, bytes)),
             .FileUsage => @intToEnum(InformationTypeValue.FileUsage, sliceToValue(c_ushort, bytes)),
@@ -573,43 +533,20 @@ pub const InformationType = enum(c_ushort) {
             .QuotedIdentifierCase => @intToEnum(InformationTypeValue.QuotedIdentifierCase, sliceToValue(c_ushort, bytes)),
             .SQLConformance => @intToEnum(InformationTypeValue.SQLConformance, sliceToValue(c_ushort, bytes)),
             // String attributes
-            .DataSourceName, .DriverName, .DriverOdbcVersion, 
-            .DriverVersion, .OdbcVersion, .SearchPatternEscape, 
-            .ServerName, .DatabaseName, .DBMSName, 
-            .DBMSVersion, .CatalogTerm, .CollationSeq, 
-            .ProcedureTerm, .SchemaTerm, .TableTerm,
-            .Username, .CatalogNameSeparator, .IdentifierQuoteChar, 
-            .Keywords, .DMVersion, .XOpenCliYear,
-            .SpecialCharacters => bytes[0..string_len:0],
+            .DataSourceName, .DriverName, .DriverOdbcVersion, .DriverVersion, .OdbcVersion, .SearchPatternEscape, .ServerName, .DatabaseName, .DBMSName, .DBMSVersion, .CatalogTerm, .CollationSeq, .ProcedureTerm, .SchemaTerm, .TableTerm, .Username, .CatalogNameSeparator, .IdentifierQuoteChar, .Keywords, .DMVersion, .XOpenCliYear, .SpecialCharacters => bytes[0..string_len :0],
             // Boolean attributes
-            .AccessibleProcedures, .AccessibleTables, .AsyncConnectFunctions, 
-            .AsyncNotification, .DriverAwarePoolingSupported, .ParamArrayRowCounts, .RowUpdates,
-            .DataSourceReadOnly, .DescribeParameter, .MultipleResultSets, .MultipleActiveTransactions,
-            .NeedLongDataLength, .CatalogName, .ColumnAlias, .ExpressionsInOrderBy, .Integrity,
-            .LikeEscapeClause, .NonNullableColumns, .OrderByColumnsInSelect, .Procedures,
-            .MaxRowSizeIncludesLong => bytes[0] == 'Y',
+            .AccessibleProcedures, .AccessibleTables, .AsyncConnectFunctions, .AsyncNotification, .DriverAwarePoolingSupported, .ParamArrayRowCounts, .RowUpdates, .DataSourceReadOnly, .DescribeParameter, .MultipleResultSets, .MultipleActiveTransactions, .NeedLongDataLength, .CatalogName, .ColumnAlias, .ExpressionsInOrderBy, .Integrity, .LikeEscapeClause, .NonNullableColumns, .OrderByColumnsInSelect, .Procedures, .MaxRowSizeIncludesLong => bytes[0] == 'Y',
             // usize attributes
-            .DriverConnectionHandle, .DriverDescriptorHandle, 
-            .DriverEnvironmentHandle, .DriverLibraryHandle,
-            .DriverStatementHandle => sliceToValue(usize, bytes),
+            .DriverConnectionHandle, .DriverDescriptorHandle, .DriverEnvironmentHandle, .DriverLibraryHandle, .DriverStatementHandle => sliceToValue(usize, bytes),
             // u32 attributes
             .MaxAsyncConcurrentStatements, .MaxBinaryLiteralLength, .MaxCharLiteralLength => sliceToValue(u32, bytes),
             // c_ushort attributes
-            .ActiveEnvironments, .MaxConcurrentActivities, 
-            .MaxDriverConnections, .MaxCatalogNameLength, .MaxColumnNameLength, 
-            .MaxColumnsInGroupBy, .MaxColumnsInIndex,
-            .MaxColumnsInOrderBy, .MaxColumnsInSelect, 
-            .MaxColumnsInTable, .MaxCursorNameLength, .MaxIdentifierLength, 
-            .MaxIndexSize, .MaxProcedureNameLength, .MaxRowSize,
-            .MaxSchemaNameLength, .MaxStatementLength, 
-            .MaxTableNameLength, .MaxTablesInSelect, .MaxUserNameLength => sliceToValue(c_ushort, bytes),
+            .ActiveEnvironments, .MaxConcurrentActivities, .MaxDriverConnections, .MaxCatalogNameLength, .MaxColumnNameLength, .MaxColumnsInGroupBy, .MaxColumnsInIndex, .MaxColumnsInOrderBy, .MaxColumnsInSelect, .MaxColumnsInTable, .MaxCursorNameLength, .MaxIdentifierLength, .MaxIndexSize, .MaxProcedureNameLength, .MaxRowSize, .MaxSchemaNameLength, .MaxStatementLength, .MaxTableNameLength, .MaxTablesInSelect, .MaxUserNameLength => sliceToValue(c_ushort, bytes),
         });
     }
-
-
 };
 
-pub const InformationTypeValue = union(InformationType) { 
+pub const InformationTypeValue = union(InformationType) {
     AccessibleProcedures: bool,
     AccessibleTables: bool,
     ActiveEnvironments: c_ushort,
@@ -651,7 +588,7 @@ pub const InformationTypeValue = union(InformationType) {
     ConvertTinyInt: SupportedConversion.Result,
     ConvertVarBinary: SupportedConversion.Result,
     ConvertVarChar: SupportedConversion.Result,
-    ConvertFunctions: ConvertFunctions.Result, 
+    ConvertFunctions: ConvertFunctions.Result,
     CorrelationName: CorrelationName,
     CreateAssertion: CreateAssertion.Result,
     CreateCharacterSet: CreateCharacterSet.Result,
@@ -668,7 +605,7 @@ pub const InformationTypeValue = union(InformationType) {
     DataSourceReadOnly: bool,
     DatabaseName: [:0]const u8,
     DatetimeLiterals: DatetimeLiterals.Result,
-    DBMSName: [:0]const u8, 
+    DBMSName: [:0]const u8,
     DBMSVersion: [:0]const u8,
     DDLIndex: DDLIndex.Result,
     DefaultTransactionIsolation: DefaultTransactionIsolation.Result,
@@ -798,16 +735,7 @@ pub const InformationTypeValue = union(InformationType) {
         .{ "sum", odbc.SQL_AF_SUM },
     });
 
-    pub const AlterDomain = Bitmask(u32, .{
-        .{ "add_domain_constraint", odbc.SQL_AD_ADD_DOMAIN_CONSTRAINT },
-        .{ "add_domain_default", odbc.SQL_AD_ADD_DOMAIN_DEFAULT },
-        .{ "constraint_name_definition", odbc.SQL_AD_CONSTRAINT_NAME_DEFINITION },
-        .{ "drop_domain_constraint", odbc.SQL_AD_DROP_DOMAIN_CONSTRAINT },
-        .{ "add_constraint_deferrable", odbc.SQL_AD_ADD_CONSTRAINT_DEFERRABLE },
-        .{ "add_constraint_non_deferrable", odbc.SQL_AD_ADD_CONSTRAINT_NON_DEFERRABLE },
-        .{ "add_constraint_initially_deferred", odbc.SQL_AD_ADD_CONSTRAINT_INITIALLY_DEFERRED },
-        .{ "add_constraint_initially_immediate", odbc.SQL_AD_ADD_CONSTRAINT_INITIALLY_IMMEDIATE }
-    });
+    pub const AlterDomain = Bitmask(u32, .{ .{ "add_domain_constraint", odbc.SQL_AD_ADD_DOMAIN_CONSTRAINT }, .{ "add_domain_default", odbc.SQL_AD_ADD_DOMAIN_DEFAULT }, .{ "constraint_name_definition", odbc.SQL_AD_CONSTRAINT_NAME_DEFINITION }, .{ "drop_domain_constraint", odbc.SQL_AD_DROP_DOMAIN_CONSTRAINT }, .{ "add_constraint_deferrable", odbc.SQL_AD_ADD_CONSTRAINT_DEFERRABLE }, .{ "add_constraint_non_deferrable", odbc.SQL_AD_ADD_CONSTRAINT_NON_DEFERRABLE }, .{ "add_constraint_initially_deferred", odbc.SQL_AD_ADD_CONSTRAINT_INITIALLY_DEFERRED }, .{ "add_constraint_initially_immediate", odbc.SQL_AD_ADD_CONSTRAINT_INITIALLY_IMMEDIATE } });
 
     pub const AlterTable = Bitmask(u32, .{
         .{ "add_column_collation", odbc.SQL_AT_ADD_COLUMN_COLLATION },
@@ -824,17 +752,9 @@ pub const InformationTypeValue = union(InformationType) {
         .{ "set_column_default", odbc.SQL_AT_SET_COLUMN_DEFAULT },
     });
 
-    pub const AsyncMode = enum(u32) {
-        Connection = odbc.SQL_AM_CONNECTION,
-        Statement = odbc.SQL_AM_STATEMENT,
-        None = odbc.SQL_AM_NONE
-    };
+    pub const AsyncMode = enum(u32) { Connection = odbc.SQL_AM_CONNECTION, Statement = odbc.SQL_AM_STATEMENT, None = odbc.SQL_AM_NONE };
 
-    pub const BatchRowCount = Bitmask(u32, .{
-        .{ "rolled_up", odbc.SQL_BRC_ROLLED_UP },
-        .{ "procedures", odbc.SQL_BRC_PROCEDURES },
-        .{ "explicit", odbc.SQL_BRC_EXPLICIT }
-    });
+    pub const BatchRowCount = Bitmask(u32, .{ .{ "rolled_up", odbc.SQL_BRC_ROLLED_UP }, .{ "procedures", odbc.SQL_BRC_PROCEDURES }, .{ "explicit", odbc.SQL_BRC_EXPLICIT } });
 
     pub const BatchSupport = Bitmask(u32, .{
         .{ "select_explicit", odbc.SQL_BS_SELECT_EXPLICIT },
@@ -843,144 +763,41 @@ pub const InformationTypeValue = union(InformationType) {
         .{ "row_count_proc", odbc.SQL_BS_ROW_COUNT_PROC },
     });
 
-    pub const BookmarkPersistence = Bitmask(u32, .{
-        .{ "close", odbc.SQL_BP_CLOSE },
-        .{ "delete", odbc.SQL_BP_DELETE },
-        .{ "drop", odbc.SQL_BP_DROP },
-        .{ "transaction", odbc.SQL_BP_TRANSACTION },
-        .{ "update", odbc.SQL_BP_UPDATE },
-        .{ "other_statement", odbc.SQL_BP_OTHER_HSTMT }
-    });
+    pub const BookmarkPersistence = Bitmask(u32, .{ .{ "close", odbc.SQL_BP_CLOSE }, .{ "delete", odbc.SQL_BP_DELETE }, .{ "drop", odbc.SQL_BP_DROP }, .{ "transaction", odbc.SQL_BP_TRANSACTION }, .{ "update", odbc.SQL_BP_UPDATE }, .{ "other_statement", odbc.SQL_BP_OTHER_HSTMT } });
 
-    pub const CatalogLocation = enum(c_ushort) {
-        Start = odbc.SQL_CL_START,
-        End = odbc.SQL_CL_END
-    };
+    pub const CatalogLocation = enum(c_ushort) { Start = odbc.SQL_CL_START, End = odbc.SQL_CL_END };
 
-    pub const CatalogUsage = Bitmask(u32, .{
-        .{ "dml_statements", odbc.SQL_CU_DML_STATEMENTS },
-        .{ "table_definition", odbc.SQL_CU_TABLE_DEFINITION },
-        .{ "index_definition", odbc.SQL_CU_INDEX_DEFINITION },
-        .{ "privilege_definition", odbc.SQL_CU_PRIVILEGE_DEFINITION }
-    });
+    pub const CatalogUsage = Bitmask(u32, .{ .{ "dml_statements", odbc.SQL_CU_DML_STATEMENTS }, .{ "table_definition", odbc.SQL_CU_TABLE_DEFINITION }, .{ "index_definition", odbc.SQL_CU_INDEX_DEFINITION }, .{ "privilege_definition", odbc.SQL_CU_PRIVILEGE_DEFINITION } });
 
-    pub const ConcatNullBehavior = enum(c_ushort) {
-        Null = odbc.SQL_CB_NULL,
-        NonNull = odbc.SQL_CB_NON_NULL
-    };
+    pub const ConcatNullBehavior = enum(c_ushort) { Null = odbc.SQL_CB_NULL, NonNull = odbc.SQL_CB_NON_NULL };
 
-    pub const SupportedConversion = Bitmask(u32, .{
-        .{ "bigint", odbc.SQL_CVT_BIGINT },
-        .{ "binary", odbc.SQL_CVT_BINARY },
-        .{ "bit", odbc.SQL_CVT_BIT },
-        .{ "guid", odbc.SQL_CVT_BIT },
-        .{ "char", odbc.SQL_CVT_CHAR },
-        .{ "date", odbc.SQL_CVT_CHAR },
-        .{ "decimal", odbc.SQL_CVT_DECIMAL },
-        .{ "double", odbc.SQL_CVT_DOUBLE },
-        .{ "float", odbc.SQL_CVT_FLOAT },
-        .{ "integer", odbc.SQL_CVT_INTEGER },
-        .{ "interval_year_month", odbc.SQL_CVT_INTERVAL_YEAR_MONTH },
-        .{ "interval_day_time", odbc.SQL_CVT_INTERVAL_DAY_TIME },
-        .{ "long_var_binary", odbc.SQL_CVT_LONGVARBINARY },
-        .{ "long_var_char", odbc.SQL_CVT_LONGVARCHAR },
-        .{ "numeric", odbc.SQL_CVT_NUMERIC },
-        .{ "real", odbc.SQL_CVT_REAL },
-        .{ "small_int", odbc.SQL_CVT_SMALLINT },
-        .{ "time", odbc.SQL_CVT_TIME },
-        .{ "timestamp", odbc.SQL_CVT_TIMESTAMP },
-        .{ "tiny_int", odbc.SQL_CVT_TINYINT },
-        .{ "var_binary", odbc.SQL_CVT_VARBINARY },
-        .{ "var_char", odbc.SQL_CVT_VARCHAR }
-    });
+    pub const SupportedConversion = Bitmask(u32, .{ .{ "bigint", odbc.SQL_CVT_BIGINT }, .{ "binary", odbc.SQL_CVT_BINARY }, .{ "bit", odbc.SQL_CVT_BIT }, .{ "guid", odbc.SQL_CVT_BIT }, .{ "char", odbc.SQL_CVT_CHAR }, .{ "date", odbc.SQL_CVT_CHAR }, .{ "decimal", odbc.SQL_CVT_DECIMAL }, .{ "double", odbc.SQL_CVT_DOUBLE }, .{ "float", odbc.SQL_CVT_FLOAT }, .{ "integer", odbc.SQL_CVT_INTEGER }, .{ "interval_year_month", odbc.SQL_CVT_INTERVAL_YEAR_MONTH }, .{ "interval_day_time", odbc.SQL_CVT_INTERVAL_DAY_TIME }, .{ "long_var_binary", odbc.SQL_CVT_LONGVARBINARY }, .{ "long_var_char", odbc.SQL_CVT_LONGVARCHAR }, .{ "numeric", odbc.SQL_CVT_NUMERIC }, .{ "real", odbc.SQL_CVT_REAL }, .{ "small_int", odbc.SQL_CVT_SMALLINT }, .{ "time", odbc.SQL_CVT_TIME }, .{ "timestamp", odbc.SQL_CVT_TIMESTAMP }, .{ "tiny_int", odbc.SQL_CVT_TINYINT }, .{ "var_binary", odbc.SQL_CVT_VARBINARY }, .{ "var_char", odbc.SQL_CVT_VARCHAR } });
 
-    pub const ConvertFunctions = Bitmask(u32, .{
-        .{ "cast", odbc.SQL_FN_CVT_CAST },
-        .{ "convert", odbc.SQL_FN_CVT_CONVERT }
-    });
+    pub const ConvertFunctions = Bitmask(u32, .{ .{ "cast", odbc.SQL_FN_CVT_CAST }, .{ "convert", odbc.SQL_FN_CVT_CONVERT } });
 
-    pub const CorrelationName = enum(c_ushort) {
-        None = odbc.SQL_CN_NONE,
-        Different = odbc.SQL_CN_DIFFERENT,
-        Any = odbc.SQL_CN_ANY
-    };
+    pub const CorrelationName = enum(c_ushort) { None = odbc.SQL_CN_NONE, Different = odbc.SQL_CN_DIFFERENT, Any = odbc.SQL_CN_ANY };
 
-    pub const CreateAssertion = Bitmask(u32, .{
-        .{ "supported", odbc.SQL_CA_CREATE_ASSERTION },
-        .{ "constraint_initially_deferred", odbc.SQL_CA_CONSTRAINT_INITIALLY_DEFERRED },
-        .{ "constraint_initially_immediate", odbc.SQL_CA_CONSTRAINT_INITIALLY_IMMEDIATE },
-        .{ "constraint_deferrable", odbc.SQL_CA_CONSTRAINT_DEFERRABLE },
-        .{ "constraint_non_deferrable", odbc.SQL_CA_CONSTRAINT_NON_DEFERRABLE }
-    });
+    pub const CreateAssertion = Bitmask(u32, .{ .{ "supported", odbc.SQL_CA_CREATE_ASSERTION }, .{ "constraint_initially_deferred", odbc.SQL_CA_CONSTRAINT_INITIALLY_DEFERRED }, .{ "constraint_initially_immediate", odbc.SQL_CA_CONSTRAINT_INITIALLY_IMMEDIATE }, .{ "constraint_deferrable", odbc.SQL_CA_CONSTRAINT_DEFERRABLE }, .{ "constraint_non_deferrable", odbc.SQL_CA_CONSTRAINT_NON_DEFERRABLE } });
 
-    pub const CreateCharacterSet = Bitmask(u32, .{
-        .{ "supported", odbc.SQL_CCS_CREATE_CHARACTER_SET },
-        .{ "collate_clause", odbc.SQL_CCS_COLLATE_CLAUSE },
-        .{ "limited_collation", odbc.SQL_CCS_LIMITED_COLLATION }
-    });
+    pub const CreateCharacterSet = Bitmask(u32, .{ .{ "supported", odbc.SQL_CCS_CREATE_CHARACTER_SET }, .{ "collate_clause", odbc.SQL_CCS_COLLATE_CLAUSE }, .{ "limited_collation", odbc.SQL_CCS_LIMITED_COLLATION } });
 
-    pub const CreateCollation = Bitmask(u32, .{ .{ "supported", odbc.SQL_CCOL_CREATE_COLLATION }});
+    pub const CreateCollation = Bitmask(u32, .{.{ "supported", odbc.SQL_CCOL_CREATE_COLLATION }});
 
-    pub const CreateDomain = Bitmask(u32, .{
-        .{ "supported", odbc.SQL_CDO_CREATE_DOMAIN },
-        .{ "supports_defaults", odbc.SQL_CDO_DEFAULT },
-        .{ "supports_constraints", odbc.SQL_CDO_CONSTRAINT },
-        .{ "supports_collation", odbc.SQL_CDO_COLLATION },
-        .{ "constraint_initially_deferred", odbc.SQL_CDO_CONSTRAINT_INITIALLY_DEFERRED },
-        .{ "constraint_initially_immediate", odbc.SQL_CDO_CONSTRAINT_INITIALLY_IMMEDIATE },
-        .{ "constraint_deferrable", odbc.SQL_CDO_CONSTRAINT_DEFERRABLE },
-        .{ "constraint_non_deferrable", odbc.SQL_CDO_CONSTRAINT_NON_DEFERRABLE }
-    });
+    pub const CreateDomain = Bitmask(u32, .{ .{ "supported", odbc.SQL_CDO_CREATE_DOMAIN }, .{ "supports_defaults", odbc.SQL_CDO_DEFAULT }, .{ "supports_constraints", odbc.SQL_CDO_CONSTRAINT }, .{ "supports_collation", odbc.SQL_CDO_COLLATION }, .{ "constraint_initially_deferred", odbc.SQL_CDO_CONSTRAINT_INITIALLY_DEFERRED }, .{ "constraint_initially_immediate", odbc.SQL_CDO_CONSTRAINT_INITIALLY_IMMEDIATE }, .{ "constraint_deferrable", odbc.SQL_CDO_CONSTRAINT_DEFERRABLE }, .{ "constraint_non_deferrable", odbc.SQL_CDO_CONSTRAINT_NON_DEFERRABLE } });
 
-    pub const CreateSchema = Bitmask(u32, .{
-        .{ "supported", odbc.SQL_CS_CREATE_SCHEMA },
-        .{ "authorization", odbc.SQL_CS_AUTHORIZATION },
-        .{ "default_character_set", odbc.SQL_CS_DEFAULT_CHARACTER_SET }
-    });
+    pub const CreateSchema = Bitmask(u32, .{ .{ "supported", odbc.SQL_CS_CREATE_SCHEMA }, .{ "authorization", odbc.SQL_CS_AUTHORIZATION }, .{ "default_character_set", odbc.SQL_CS_DEFAULT_CHARACTER_SET } });
 
-    pub const CreateTable = Bitmask(u32, .{
-        .{ "supported", odbc.SQL_CT_CREATE_TABLE },
-        .{ "table_constraints", odbc.SQL_CT_TABLE_CONSTRAINT },
-        .{ "constraint_name_definition", odbc.SQL_CT_CONSTRAINT_NAME_DEFINITION },
-        .{ "commit_preserve", odbc.SQL_CT_COMMIT_PRESERVE },
-        .{ "commit_delete", odbc.SQL_CT_COMMIT_DELETE },
-        .{ "global_temporary", odbc.SQL_CT_GLOBAL_TEMPORARY },
-        .{ "local_temporary", odbc.SQL_CT_LOCAL_TEMPORARY },
-        .{ "column_constraint_supported", odbc.SQL_CT_COLUMN_CONSTRAINT },
-        .{ "column_default", odbc.SQL_CT_COLUMN_DEFAULT },
-        .{ "column_collation", odbc.SQL_CT_COLUMN_COLLATION },
-        .{ "constraint_initially_deferred", odbc.SQL_CT_CONSTRAINT_INITIALLY_DEFERRED },
-        .{ "constraint_initially_immediate", odbc.SQL_CT_CONSTRAINT_INITIALLY_IMMEDIATE },
-        .{ "constraint_deferrable", odbc.SQL_CT_CONSTRAINT_DEFERRABLE },
-        .{ "constraint_non_deferrable", odbc.SQL_CT_CONSTRAINT_NON_DEFERRABLE }
-    });
+    pub const CreateTable = Bitmask(u32, .{ .{ "supported", odbc.SQL_CT_CREATE_TABLE }, .{ "table_constraints", odbc.SQL_CT_TABLE_CONSTRAINT }, .{ "constraint_name_definition", odbc.SQL_CT_CONSTRAINT_NAME_DEFINITION }, .{ "commit_preserve", odbc.SQL_CT_COMMIT_PRESERVE }, .{ "commit_delete", odbc.SQL_CT_COMMIT_DELETE }, .{ "global_temporary", odbc.SQL_CT_GLOBAL_TEMPORARY }, .{ "local_temporary", odbc.SQL_CT_LOCAL_TEMPORARY }, .{ "column_constraint_supported", odbc.SQL_CT_COLUMN_CONSTRAINT }, .{ "column_default", odbc.SQL_CT_COLUMN_DEFAULT }, .{ "column_collation", odbc.SQL_CT_COLUMN_COLLATION }, .{ "constraint_initially_deferred", odbc.SQL_CT_CONSTRAINT_INITIALLY_DEFERRED }, .{ "constraint_initially_immediate", odbc.SQL_CT_CONSTRAINT_INITIALLY_IMMEDIATE }, .{ "constraint_deferrable", odbc.SQL_CT_CONSTRAINT_DEFERRABLE }, .{ "constraint_non_deferrable", odbc.SQL_CT_CONSTRAINT_NON_DEFERRABLE } });
 
-    pub const CreateTranslation = Bitmask(u32, .{ .{ "supported", odbc.SQL_CTR_CREATE_TRANSLATION }});
+    pub const CreateTranslation = Bitmask(u32, .{.{ "supported", odbc.SQL_CTR_CREATE_TRANSLATION }});
 
-    pub const CreateView = Bitmask(u32, .{
-        .{ "supported", odbc.SQL_CV_CREATE_VIEW },
-        .{ "check_option", odbc.SQL_CV_CHECK_OPTION },
-        .{ "cascaded", odbc.SQL_CV_CASCADED },
-        .{ "local", odbc.SQL_CV_LOCAL }
-    });
+    pub const CreateView = Bitmask(u32, .{ .{ "supported", odbc.SQL_CV_CREATE_VIEW }, .{ "check_option", odbc.SQL_CV_CHECK_OPTION }, .{ "cascaded", odbc.SQL_CV_CASCADED }, .{ "local", odbc.SQL_CV_LOCAL } });
 
-    pub const CursorCommitBehavior = enum(c_ushort) {
-        Delete = odbc.SQL_CB_DELETE,
-        Close = odbc.SQL_CB_CLOSE,
-        Preserve = odbc.SQL_CB_PRESERVE
-    };
+    pub const CursorCommitBehavior = enum(c_ushort) { Delete = odbc.SQL_CB_DELETE, Close = odbc.SQL_CB_CLOSE, Preserve = odbc.SQL_CB_PRESERVE };
 
-    pub const CursorRollbackBehavior = enum(c_ushort) {
-        Delete = odbc.SQL_CB_DELETE,
-        Close = odbc.SQL_CB_CLOSE,
-        Preserve = odbc.SQL_CB_PRESERVE
-    };
+    pub const CursorRollbackBehavior = enum(c_ushort) { Delete = odbc.SQL_CB_DELETE, Close = odbc.SQL_CB_CLOSE, Preserve = odbc.SQL_CB_PRESERVE };
 
-    pub const CursorSensitivity = enum(u32) {
-        Insensitive = odbc.SQL_INSENSITIVE,
-        Unspecified = odbc.SQL_UNSPECIFIED,
-        Sensitive = odbc.SQL_SENSITIVE
-    };
+    pub const CursorSensitivity = enum(u32) { Insensitive = odbc.SQL_INSENSITIVE, Unspecified = odbc.SQL_UNSPECIFIED, Sensitive = odbc.SQL_SENSITIVE };
 
     pub const DatetimeLiterals = Bitmask(u32, .{
         .{ "date", odbc.SQL_DL_SQL92_DATE },
@@ -1001,50 +818,26 @@ pub const InformationTypeValue = union(InformationType) {
         .{ "interval_minute_to_second", odbc.SQL_DL_SQL92_INTERVAL_MINUTE_TO_SECOND },
     });
 
-    pub const DDLIndex = Bitmask(u32, .{
-        .{ "create_index", odbc.SQL_DI_CREATE_INDEX },
-        .{ "drop_index", odbc.SQL_DI_DROP_INDEX }
-    });
+    pub const DDLIndex = Bitmask(u32, .{ .{ "create_index", odbc.SQL_DI_CREATE_INDEX }, .{ "drop_index", odbc.SQL_DI_DROP_INDEX } });
 
-    pub const DefaultTransactionIsolation = Bitmask(u32, .{
-        .{ "read_uncommitted", odbc.SQL_TXN_READ_UNCOMMITTED },
-        .{ "read_committed", odbc.SQL_TXN_READ_COMMITTED },
-        .{ "repeatable_read", odbc.SQL_TXN_REPEATABLE_READ },
-        .{ "serializable", odbc.SQL_TXN_SERIALIZABLE }
-    });
+    pub const DefaultTransactionIsolation = Bitmask(u32, .{ .{ "read_uncommitted", odbc.SQL_TXN_READ_UNCOMMITTED }, .{ "read_committed", odbc.SQL_TXN_READ_COMMITTED }, .{ "repeatable_read", odbc.SQL_TXN_REPEATABLE_READ }, .{ "serializable", odbc.SQL_TXN_SERIALIZABLE } });
 
-    pub const DropAssertion = Bitmask(u32, .{ .{ "supported", odbc.SQL_DA_DROP_ASSERTION }});
+    pub const DropAssertion = Bitmask(u32, .{.{ "supported", odbc.SQL_DA_DROP_ASSERTION }});
 
-    pub const DropCharacterSet = Bitmask(u32, .{ .{ "supported", odbc.SQL_DCS_DROP_CHARACTER_SET }});
+    pub const DropCharacterSet = Bitmask(u32, .{.{ "supported", odbc.SQL_DCS_DROP_CHARACTER_SET }});
 
-    pub const DropCollation = Bitmask(u32, .{ .{ "supported", odbc.SQL_DC_DROP_COLLATION }});
+    pub const DropCollation = Bitmask(u32, .{.{ "supported", odbc.SQL_DC_DROP_COLLATION }});
 
-    pub const DropDomain = Bitmask(u32, .{
-        .{ "supported", odbc.SQL_DD_DROP_DOMAIN },
-        .{ "cascade", odbc.SQL_DD_CASCADE },
-        .{ "restrict", odbc.SQL_DD_RESTRICT }
-    });
+    pub const DropDomain = Bitmask(u32, .{ .{ "supported", odbc.SQL_DD_DROP_DOMAIN }, .{ "cascade", odbc.SQL_DD_CASCADE }, .{ "restrict", odbc.SQL_DD_RESTRICT } });
 
-    pub const DropSchema = Bitmask(u32, .{
-        .{ "supported", odbc.SQL_DS_DROP_SCHEMA },
-        .{ "cascade", odbc.SQL_DS_CASCADE },
-        .{ "restrict", odbc.SQL_DS_RESTRICT }
-    });
+    pub const DropSchema = Bitmask(u32, .{ .{ "supported", odbc.SQL_DS_DROP_SCHEMA }, .{ "cascade", odbc.SQL_DS_CASCADE }, .{ "restrict", odbc.SQL_DS_RESTRICT } });
 
-    pub const DropTable = Bitmask(u32, .{
-        .{ "supported", odbc.SQL_DT_DROP_TABLE },
-        .{ "cascade", odbc.SQL_DT_CASCADE },
-        .{ "restrict", odbc.SQL_DT_RESTRICT }
-    });
+    pub const DropTable = Bitmask(u32, .{ .{ "supported", odbc.SQL_DT_DROP_TABLE }, .{ "cascade", odbc.SQL_DT_CASCADE }, .{ "restrict", odbc.SQL_DT_RESTRICT } });
 
-    pub const DropTranslation = Bitmask(u32, .{ .{ "supported", odbc.SQL_DTR_DROP_TRANSLATION }});
+    pub const DropTranslation = Bitmask(u32, .{.{ "supported", odbc.SQL_DTR_DROP_TRANSLATION }});
 
-    pub const DropView = Bitmask(u32, .{
-        .{ "supported", odbc.SQL_DV_DROP_VIEW },
-        .{ "cascade", odbc.SQL_DV_CASCADE },
-        .{ "restrict", odbc.SQL_DV_RESTRICT }
-    });
-    
+    pub const DropView = Bitmask(u32, .{ .{ "supported", odbc.SQL_DV_DROP_VIEW }, .{ "cascade", odbc.SQL_DV_CASCADE }, .{ "restrict", odbc.SQL_DV_RESTRICT } });
+
     pub const CursorAttributes1 = Bitmask(u32, .{
         .{ "next", odbc.SQL_CA1_NEXT },
         .{ "absolute", odbc.SQL_CA1_ABSOLUTE },
@@ -1087,66 +880,17 @@ pub const InformationTypeValue = union(InformationType) {
         .{ "simulate_unique", odbc.SQL_CA2_SIMULATE_UNIQUE },
     });
 
-    pub const FileUsage = enum(c_ushort) {
-        NotSupported = odbc.SQL_FILE_NOT_SUPPORTED,
-        Table = odbc.SQL_FILE_TABLE,
-        Catalog = odbc.SQL_FILE_CATALOG
-    };
+    pub const FileUsage = enum(c_ushort) { NotSupported = odbc.SQL_FILE_NOT_SUPPORTED, Table = odbc.SQL_FILE_TABLE, Catalog = odbc.SQL_FILE_CATALOG };
 
-    pub const GetDataExtensions = Bitmask(u32, .{
-        .{ "any_column", odbc.SQL_GD_ANY_COLUMN },
-        .{ "any_order", odbc.SQL_GD_ANY_ORDER },
-        .{ "block", odbc.SQL_GD_BLOCK },
-        .{ "bound", odbc.SQL_GD_BOUND },
-        .{ "output_params", odbc.SQL_GD_OUTPUT_PARAMS }
-    });
+    pub const GetDataExtensions = Bitmask(u32, .{ .{ "any_column", odbc.SQL_GD_ANY_COLUMN }, .{ "any_order", odbc.SQL_GD_ANY_ORDER }, .{ "block", odbc.SQL_GD_BLOCK }, .{ "bound", odbc.SQL_GD_BOUND }, .{ "output_params", odbc.SQL_GD_OUTPUT_PARAMS } });
 
-    pub const GroupBy = enum(c_ushort) {
-        Collate = odbc.SQL_GB_COLLATE,
-        NotSupported = odbc.SQL_GB_NOT_SUPPORTED,
-        GroupByEqualsSelect = odbc.SQL_GB_GROUP_BY_EQUALS_SELECT,
-        NoRelation = odbc.SQL_GB_NO_RELATION
-    };
+    pub const GroupBy = enum(c_ushort) { Collate = odbc.SQL_GB_COLLATE, NotSupported = odbc.SQL_GB_NOT_SUPPORTED, GroupByEqualsSelect = odbc.SQL_GB_GROUP_BY_EQUALS_SELECT, NoRelation = odbc.SQL_GB_NO_RELATION };
 
-    pub const IdentifierCase = enum(c_ushort) {
-        Upper = odbc.SQL_IC_UPPER,
-        Lower = odbc.SQL_IC_LOWER,
-        Sensitive = odbc.SQL_IC_SENSITIVE,
-        Mixed = odbc.SQL_IC_MIXED
-    };
+    pub const IdentifierCase = enum(c_ushort) { Upper = odbc.SQL_IC_UPPER, Lower = odbc.SQL_IC_LOWER, Sensitive = odbc.SQL_IC_SENSITIVE, Mixed = odbc.SQL_IC_MIXED };
 
-    pub const IndexKeywords = Bitmask(u32, .{
-        .{ "none", odbc.SQL_IK_NONE },
-        .{ "asc", odbc.SQL_IK_ASC },
-        .{ "desc", odbc.SQL_IK_DESC },
-        .{ "all", odbc.SQL_IK_ALL }
-    });
+    pub const IndexKeywords = Bitmask(u32, .{ .{ "none", odbc.SQL_IK_NONE }, .{ "asc", odbc.SQL_IK_ASC }, .{ "desc", odbc.SQL_IK_DESC }, .{ "all", odbc.SQL_IK_ALL } });
 
-    pub const InfoSchemaViews = Bitmask(u32, .{
-        .{ "assertions", odbc.SQL_ISV_ASSERTIONS },
-        .{ "character_sets", odbc.SQL_ISV_CHARACTER_SETS },
-        .{ "check_constraints", odbc.SQL_ISV_CHECK_CONSTRAINTS },
-        .{ "collations", odbc.SQL_ISV_COLLATIONS },
-        .{ "column_domain_usage", odbc.SQL_ISV_COLUMN_DOMAIN_USAGE },
-        .{ "column_privileges", odbc.SQL_ISV_COLUMN_PRIVILEGES },
-        .{ "columns", odbc.SQL_ISV_COLUMNS },
-        .{ "constraint_column_usage", odbc.SQL_ISV_CONSTRAINT_COLUMN_USAGE },
-        .{ "constraint_table_usage", odbc.SQL_ISV_CONSTRAINT_TABLE_USAGE },
-        .{ "domain_constraints", odbc.SQL_ISV_DOMAIN_CONSTRAINTS },
-        .{ "domains", odbc.SQL_ISV_DOMAINS },
-        .{ "key_column_usage", odbc.SQL_ISV_KEY_COLUMN_USAGE },
-        .{ "referential_constraints", odbc.SQL_ISV_REFERENTIAL_CONSTRAINTS },
-        .{ "schemata", odbc.SQL_ISV_SCHEMATA },
-        .{ "sql_languages", odbc.SQL_ISV_SQL_LANGUAGES },
-        .{ "table_constraints", odbc.SQL_ISV_TABLE_CONSTRAINTS },
-        .{ "table_privileges", odbc.SQL_ISV_TABLE_PRIVILEGES },
-        .{ "tables", odbc.SQL_ISV_TABLES },
-        .{ "translations", odbc.SQL_ISV_TRANSLATIONS },
-        .{ "usage_privileges", odbc.SQL_ISV_USAGE_PRIVILEGES },
-        .{ "view_column_usage", odbc.SQL_ISV_VIEW_COLUMN_USAGE },
-        .{ "view_table_usage", odbc.SQL_ISV_VIEW_TABLE_USAGE },
-        .{ "views", odbc.SQL_ISV_VIEWS }
-    });
+    pub const InfoSchemaViews = Bitmask(u32, .{ .{ "assertions", odbc.SQL_ISV_ASSERTIONS }, .{ "character_sets", odbc.SQL_ISV_CHARACTER_SETS }, .{ "check_constraints", odbc.SQL_ISV_CHECK_CONSTRAINTS }, .{ "collations", odbc.SQL_ISV_COLLATIONS }, .{ "column_domain_usage", odbc.SQL_ISV_COLUMN_DOMAIN_USAGE }, .{ "column_privileges", odbc.SQL_ISV_COLUMN_PRIVILEGES }, .{ "columns", odbc.SQL_ISV_COLUMNS }, .{ "constraint_column_usage", odbc.SQL_ISV_CONSTRAINT_COLUMN_USAGE }, .{ "constraint_table_usage", odbc.SQL_ISV_CONSTRAINT_TABLE_USAGE }, .{ "domain_constraints", odbc.SQL_ISV_DOMAIN_CONSTRAINTS }, .{ "domains", odbc.SQL_ISV_DOMAINS }, .{ "key_column_usage", odbc.SQL_ISV_KEY_COLUMN_USAGE }, .{ "referential_constraints", odbc.SQL_ISV_REFERENTIAL_CONSTRAINTS }, .{ "schemata", odbc.SQL_ISV_SCHEMATA }, .{ "sql_languages", odbc.SQL_ISV_SQL_LANGUAGES }, .{ "table_constraints", odbc.SQL_ISV_TABLE_CONSTRAINTS }, .{ "table_privileges", odbc.SQL_ISV_TABLE_PRIVILEGES }, .{ "tables", odbc.SQL_ISV_TABLES }, .{ "translations", odbc.SQL_ISV_TRANSLATIONS }, .{ "usage_privileges", odbc.SQL_ISV_USAGE_PRIVILEGES }, .{ "view_column_usage", odbc.SQL_ISV_VIEW_COLUMN_USAGE }, .{ "view_table_usage", odbc.SQL_ISV_VIEW_TABLE_USAGE }, .{ "views", odbc.SQL_ISV_VIEWS } });
 
     pub const InsertStatement = Bitmask(u32, .{
         .{ "insert_literals", odbc.SQL_IS_INSERT_LITERALS },
@@ -1154,12 +898,7 @@ pub const InformationTypeValue = union(InformationType) {
         .{ "select_into", odbc.SQL_IS_SELECT_INTO },
     });
 
-    pub const NullCollation = enum(c_ushort) {
-        End = odbc.SQL_NC_END,
-        High = odbc.SQL_NC_HIGH,
-        Low = odbc.SQL_NC_LOW,
-        Start = odbc.SQL_NC_START
-    };
+    pub const NullCollation = enum(c_ushort) { End = odbc.SQL_NC_END, High = odbc.SQL_NC_HIGH, Low = odbc.SQL_NC_LOW, Start = odbc.SQL_NC_START };
 
     pub const NumericFunctions = Bitmask(u32, .{
         .{ "abs", odbc.SQL_FN_NUM_ABS },
@@ -1188,11 +927,7 @@ pub const InformationTypeValue = union(InformationType) {
         .{ "truncate", odbc.SQL_FN_NUM_TRUNCATE },
     });
 
-    pub const InterfaceConformance = enum(u32) {
-        Core = odbc.SQL_OIC_CORE,
-        Level1 = odbc.SQL_OIC_LEVEL1,
-        Level2 = odbc.SQL_OIC_LEVEL2
-    };
+    pub const InterfaceConformance = enum(u32) { Core = odbc.SQL_OIC_CORE, Level1 = odbc.SQL_OIC_LEVEL1, Level2 = odbc.SQL_OIC_LEVEL2 };
 
     pub const OJCapabilities = Bitmask(u32, .{
         .{ "left", odbc.SQL_OJ_LEFT },
@@ -1218,12 +953,7 @@ pub const InformationTypeValue = union(InformationType) {
         .{ "add", odbc.SQL_POS_ADD },
     });
 
-    pub const QuotedIdentifierCase = enum(c_ushort) {
-        Upper = odbc.SQL_IC_UPPER,
-        Lower = odbc.SQL_IC_LOWER,
-        Sensitive = odbc.SQL_IC_SENSITIVE,
-        Mixed = odbc.SQL_IC_MIXED
-    };
+    pub const QuotedIdentifierCase = enum(c_ushort) { Upper = odbc.SQL_IC_UPPER, Lower = odbc.SQL_IC_LOWER, Sensitive = odbc.SQL_IC_SENSITIVE, Mixed = odbc.SQL_IC_MIXED };
 
     pub const SchemaUsage = Bitmask(u32, .{
         .{ "dml_statements", odbc.SQL_SU_DML_STATEMENTS },
@@ -1352,7 +1082,6 @@ pub const InformationTypeValue = union(InformationType) {
         .{ "union", odbc.SQL_U_UNION },
         .{ "union_all", odbc.SQL_U_UNION_ALL },
     });
-
 };
 
 pub const CType = enum(odbc.SQLSMALLINT) {
@@ -1390,41 +1119,15 @@ pub const CType = enum(odbc.SQLSMALLINT) {
     Guid = odbc.SQL_C_GUID,
 
     pub const Interval = struct {
-        pub const IntervalType = enum(odbc.SQLSMALLINT) {
-            Year = 1,
-            Month = 2,
-            Day = 3,
-            Hour = 4,
-            Minute = 5,
-            Seconds = 6,
-            YearToMonth = 7,
-            DayToHour = 8,
-            DayToMinute = 9,
-            DayToSecond = 10,
-            HourToMinute = 11,
-            HourToSecond = 12,
-            MinuteToSecond = 13
-        };
+        pub const IntervalType = enum(odbc.SQLSMALLINT) { Year = 1, Month = 2, Day = 3, Hour = 4, Minute = 5, Seconds = 6, YearToMonth = 7, DayToHour = 8, DayToMinute = 9, DayToSecond = 10, HourToMinute = 11, HourToSecond = 12, MinuteToSecond = 13 };
 
-        pub const YearMonth = packed struct {
-            year: u32,
-            month: u32
-        };
+        pub const YearMonth = packed struct { year: u32, month: u32 };
 
-        pub const DaySecond = packed struct {
-            day: u32,
-            hour: u32,
-            minute: u32,
-            second: u32,
-            fraction: u32
-        };
+        pub const DaySecond = packed struct { day: u32, hour: u32, minute: u32, second: u32, fraction: u32 };
 
         interval_type: IntervalType,
         // interval_sign: IntervalSign,
-        int_val: union(enum) {
-            year_month: YearMonth,
-            day_second: DaySecond 
-        },
+        int_val: union(enum) { year_month: YearMonth, day_second: DaySecond },
     };
 
     pub const SqlDate = packed struct {
@@ -1473,7 +1176,7 @@ pub const CType = enum(odbc.SQLSMALLINT) {
             const native_scaled_value = std.mem.littleToNative(u128, le_scaled_value);
 
             var float_value = @intToFloat(FloatType, native_scaled_value);
-            var scale_index: u8 = 0; 
+            var scale_index: u8 = 0;
             while (scale_index < numeric.scale) : (scale_index += 1) {
                 float_value /= 10;
             }
@@ -1482,12 +1185,7 @@ pub const CType = enum(odbc.SQLSMALLINT) {
         }
     };
 
-    pub const SqlGuid = packed struct {
-        data_1: u32,
-        data_2: u16,
-        data_3: u16,
-        data_4: u8
-    };
+    pub const SqlGuid = packed struct { data_1: u32, data_2: u16, data_3: u16, data_4: u8 };
 
     pub fn toType(comptime odbc_type: CType) type {
         return switch (odbc_type) {
@@ -1505,10 +1203,7 @@ pub const CType = enum(odbc.SQLSMALLINT) {
             .SBigInt => i64,
             .UBigInt => u64,
             .Binary => u8,
-            .IntervalMonth, .IntervalYear, .IntervalYearToMonth, .IntervalDay,
-            .IntervalHour, .IntervalMinute, .IntervalSecond,
-            .IntervalDayToHour, .IntervalDayToMinute, .IntervalDayToSecond,
-            .IntervalHourToMinute, .IntervalHourToSecond, .IntervalMinuteToSecond => Interval,
+            .IntervalMonth, .IntervalYear, .IntervalYearToMonth, .IntervalDay, .IntervalHour, .IntervalMinute, .IntervalSecond, .IntervalDayToHour, .IntervalDayToMinute, .IntervalDayToSecond, .IntervalHourToMinute, .IntervalHourToSecond, .IntervalMinuteToSecond => Interval,
             .Date => SqlDate,
             .Time => SqlTime,
             .Timestamp => SqlTimestamp,
@@ -1521,10 +1216,10 @@ pub const CType = enum(odbc.SQLSMALLINT) {
         if (std.meta.trait.isZigString(T)) return .Char;
         switch (@typeInfo(T)) {
             .Array => {
-                if (@typeInfo(T).Array.child == u8) return .Char; 
-                if (@typeInfo(T).Array.child == u16) return .WChar; 
+                if (@typeInfo(T).Array.child == u8) return .Char;
+                if (@typeInfo(T).Array.child == u16) return .WChar;
             },
-            else => {}
+            else => {},
         }
         return switch (T) {
             SqlDate => .Date,
@@ -1542,14 +1237,17 @@ pub const CType = enum(odbc.SQLSMALLINT) {
             u8 => .UTinyInt,
             i64, c_longlong => .SBigInt,
             u64, c_ulonglong => .UBigInt,
-            else => null
+            else => null,
         };
     }
 
     pub fn isSlice(c_type: CType) bool {
         return switch (c_type) {
-            .Char, .WChar, .Binary, => true,
-            else => false
+            .Char,
+            .WChar,
+            .Binary,
+            => true,
+            else => false,
         };
     }
 
@@ -1557,7 +1255,6 @@ pub const CType = enum(odbc.SQLSMALLINT) {
         const zig_type = c_type.toType();
         return SqlType.fromType(zig_type);
     }
-
 };
 
 pub const SqlType = enum(odbc.SQLSMALLINT) {
@@ -1618,7 +1315,7 @@ pub const SqlType = enum(odbc.SQLSMALLINT) {
             CType.SqlTimestamp => .Timestamp,
             CType.SqlNumeric => .Numeric,
             CType.SqlGuid => .Guid,
-            else => null
+            else => null,
         };
     }
 
@@ -1702,8 +1399,8 @@ pub const StatementAttribute = enum(i32) {
     pub fn getValue(self: StatementAttribute, bytes: []u8) StatementAttributeValue {
         const value = bytesToValue(usize, bytes[0..@sizeOf(usize)]);
         return switch (self) {
-            .AppParamDescription => .{ .AppParamDescription = @intToPtr(*c_void, value) },
-            .AppRowDescription => .{ .AppRowDescription = @intToPtr(*c_void, value) },
+            .AppParamDescription => .{ .AppParamDescription = @intToPtr(*anyopaque, value) },
+            .AppRowDescription => .{ .AppRowDescription = @intToPtr(*anyopaque, value) },
             .EnableAsync => .{ .EnableAsync = value == odbc.SQL_ASYNC_ENABLE_ON },
             .Concurrency => .{ .Concurrency = @intToEnum(StatementAttributeValue.Concurrency, value) },
             .CursorScrollable => .{ .CursorScrollable = value == odbc.SQL_SCROLLABLE },
@@ -1711,14 +1408,14 @@ pub const StatementAttribute = enum(i32) {
             .CursorType => .{ .CursorType = @intToEnum(StatementAttributeValue.CursorType, value) },
             .EnableAutoIpd => .{ .EnableAutoIpd = value == odbc.SQL_TRUE },
             .FetchBookmarkPointer => .{ .FetchBookmarkPointer = @intToPtr(*isize, value) },
-            .ImpParamDescription => .{ .ImpParamDescription = @intToPtr(*c_void, value) },
-            .ImpRowDescription => .{ .ImpRowDescription = @intToPtr(*c_void, value) },
+            .ImpParamDescription => .{ .ImpParamDescription = @intToPtr(*anyopaque, value) },
+            .ImpRowDescription => .{ .ImpRowDescription = @intToPtr(*anyopaque, value) },
             .KeysetSize => .{ .KeysetSize = value },
             .MaxLength => .{ .MaxLength = value },
             .MaxRows => .{ .MaxRows = value },
             .MetadataId => .{ .MetadataId = value == odbc.SQL_TRUE },
             .NoScan => .{ .NoScan = value == odbc.SQL_NOSCAN_ON },
-            .ParamBindOffsetPointer => .{ .ParamBindOffsetPointer = @intToPtr(?*c_void, value) },
+            .ParamBindOffsetPointer => .{ .ParamBindOffsetPointer = @intToPtr(?*anyopaque, value) },
             .ParamBindType => .{ .ParamBindType = value },
             .ParamOperationPointer => .{ .ParamOperationPointer = @alignCast(@alignOf(usize), std.mem.bytesAsSlice(StatementAttributeValue.ParamOperation, bytes)) },
             .ParamStatusPointer => .{ .ParamStatusPointer = @alignCast(@alignOf(usize), std.mem.bytesAsSlice(StatementAttributeValue.ParamStatus, bytes)) },
@@ -1737,12 +1434,11 @@ pub const StatementAttribute = enum(i32) {
             .UseBookmarks => .{ .UseBookmarks = value == odbc.SQL_UB_VARIABLE },
         };
     }
-
 };
 
 pub const StatementAttributeValue = union(StatementAttribute) {
-    AppParamDescription: *c_void,
-    AppRowDescription: *c_void,
+    AppParamDescription: *anyopaque,
+    AppRowDescription: *anyopaque,
     EnableAsync: bool,
     Concurrency: Concurrency,
     CursorScrollable: bool,
@@ -1750,14 +1446,14 @@ pub const StatementAttributeValue = union(StatementAttribute) {
     CursorType: CursorType,
     EnableAutoIpd: bool,
     FetchBookmarkPointer: *isize,
-    ImpParamDescription: *c_void,
-    ImpRowDescription: *c_void,
+    ImpParamDescription: *anyopaque,
+    ImpRowDescription: *anyopaque,
     KeysetSize: usize,
     MaxLength: usize,
     MaxRows: usize,
     MetadataId: bool,
     NoScan: bool,
-    ParamBindOffsetPointer: ?*c_void,
+    ParamBindOffsetPointer: ?*anyopaque,
     ParamBindType: usize,
     ParamOperationPointer: []ParamOperation,
     ParamStatusPointer: []ParamStatus,
@@ -1795,10 +1491,7 @@ pub const StatementAttributeValue = union(StatementAttribute) {
         Dynamic = odbc.SQL_CURSOR_DYNAMIC,
     };
 
-    pub const ParamOperation = enum(c_ushort) {
-        Proceed = odbc.SQL_PARAM_PROCEED,
-        Ignore = odbc.SQL_PARAM_IGNORE
-    };
+    pub const ParamOperation = enum(c_ushort) { Proceed = odbc.SQL_PARAM_PROCEED, Ignore = odbc.SQL_PARAM_IGNORE };
 
     pub const ParamStatus = enum(c_ushort) {
         Success = odbc.SQL_PARAM_SUCCESS,
@@ -1864,7 +1557,7 @@ pub const StatementAttributeValue = union(StatementAttribute) {
             },
             .ParamBindOffsetPointer => |v| toBytes(@ptrToInt(v))[0..],
             .ParamBindType => |v| toBytes(v)[0..],
-            
+
             .ParamsProcessedPointer => |v| toBytes(@ptrToInt(v))[0..],
             .ParamsetSize => |v| toBytes(v)[0..],
             .QueryTimeout => |v| toBytes(v)[0..],
@@ -1893,7 +1586,6 @@ pub const StatementAttributeValue = union(StatementAttribute) {
 
         return result_buffer;
     }
-    
 };
 
 pub const InputOutputType = enum(odbc.SQLSMALLINT) {
@@ -2037,7 +1729,6 @@ pub const Reserved = enum(odbc.SQLUSMALLINT) {
     Ensure = odbc.SQL_ENSURE,
     Quick = odbc.SQL_QUICK,
 };
-
 
 test "CType" {
     const conforms = struct {
