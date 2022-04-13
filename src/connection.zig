@@ -74,7 +74,7 @@ pub const Connection = struct {
     /// contains the information missing from the previous call.
     ///
     /// If the user passes all of the necessary parameters, then a connection is established and `browseConnect` will return `null`.
-    pub fn browseConnect(self: *Connection, allocator: Allocator, partial_connection_string: []const u8) !?[]const u8 {
+    pub fn browseConnect(self: Connection, allocator: Allocator, partial_connection_string: []const u8) !?[]const u8 {
         var out_string_len: c.SQLSMALLINT = 0;
         var out_string_buffer = try allocator.alloc(u8, 100);
         errdefer allocator.free(out_string_buffer);
@@ -126,7 +126,7 @@ pub const Connection = struct {
     }
 
     /// Commit or rollback all open transactions on any statement associated with this connection.
-    pub fn endTransaction(self: *Connection, completion_type: odbc.CompletionType) !void {
+    pub fn endTransaction(self: Connection, completion_type: odbc.CompletionType) !void {
         const result = c.SQLEndTran(@enumToInt(HandleType.Connection), self.handle, @enumToInt(completion_type));
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
@@ -137,7 +137,7 @@ pub const Connection = struct {
 
     /// Cancel an in-progress function. This could be a function that returned `StillProcessing`, `NeedsData`, or
     /// a function that is actively processing on another thread.
-    pub fn cancel(self: *Connection) !void {
+    pub fn cancel(self: Connection) !void {
         const result = c.SQLCancelHandle(@enumToInt(HandleType.Connection), self.handle);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
@@ -148,7 +148,7 @@ pub const Connection = struct {
 
     /// Return `true` if this driver supports the specified function, `false` otherwise. If any error occurs
     /// while running this function, returns `false`.
-    pub fn isFunctionEnabled(self: *Connection, function_id: odbc.FunctionId) bool {
+    pub fn isFunctionEnabled(self: Connection, function_id: odbc.FunctionId) bool {
         var supported: c.SQLUSMALLINT = 0;
         const result = c.SQLGetFunctions(self.handle, @enumToInt(function_id), &supported);
         return switch (@intToEnum(SqlReturn, result)) {
@@ -158,7 +158,7 @@ pub const Connection = struct {
     }
 
     /// Get all of the functions supported by this driver.
-    pub fn getAllEnabledFunctions(self: *Connection, allocator: Allocator) ![]odbc.FunctionId {
+    pub fn getAllEnabledFunctions(self: Connection, allocator: Allocator) ![]odbc.FunctionId {
         var result_buffer: [c.SQL_API_ODBC3_ALL_FUNCTIONS_SIZE]c.SQLUSMALLINT = undefined;
         var result_list = std.ArrayList(odbc.FunctionId).init(allocator);
         const result = c.SQLGetFunctions(self.handle, c.SQL_API_ODBC3_ALL_FUNCTIONS, @ptrCast([*c]c_ushort, &result_buffer));
@@ -180,7 +180,7 @@ pub const Connection = struct {
     }
 
     /// Given a SQL statement, return the same statement as modified by the current driver.
-    pub fn nativeSql(self: *Connection, allocator: Allocator, sql_statement: []const u8) ![]const u8 {
+    pub fn nativeSql(self: Connection, allocator: Allocator, sql_statement: []const u8) ![]const u8 {
         var out_statement_len: c.SQLINTEGER = 0;
         // Allocate a buffer for the out string, allocate the same number of chars as the in string because it's likely to be
         // close
@@ -204,7 +204,7 @@ pub const Connection = struct {
         }
     }
 
-    pub fn getInfo(self: *Connection, comptime info_type: InformationType, allocator: Allocator) !InformationTypeValue {
+    pub fn getInfo(self: Connection, comptime info_type: InformationType, allocator: Allocator) !InformationTypeValue {
         var result_buffer = try allocator.alloc(u8, 200);
         errdefer allocator.free(result_buffer);
 
@@ -231,7 +231,7 @@ pub const Connection = struct {
         }
     }
 
-    pub fn getAttribute(self: *Connection, comptime attribute: Attribute, allocator: Allocator) !?AttributeValue {
+    pub fn getAttribute(self: Connection, comptime attribute: Attribute, allocator: Allocator) !?AttributeValue {
         var value = try allocator.alloc(u8, 100);
         defer allocator.free(value);
 
@@ -253,7 +253,7 @@ pub const Connection = struct {
         }
     }
 
-    pub fn setAttribute(self: *Connection, value: AttributeValue) !void {
+    pub fn setAttribute(self: Connection, value: AttributeValue) !void {
         const result = switch (value) {
             // For string attributes, pass the pointers to the strings directly
             .CurrentCatalog => |v| c.SQLSetConnectAttr(self.handle, @enumToInt(value), v.ptr, @intCast(c_int, v.len)),
@@ -275,15 +275,15 @@ pub const Connection = struct {
         };
     }
 
-    pub fn getLastError(self: *const Connection) odbc_error.LastError {
+    pub fn getLastError(self: Connection) odbc_error.LastError {
         return odbc_error.getLastError(odbc.HandleType.Connection, self.handle);
     }
 
-    pub fn getErrors(self: *Connection, allocator: Allocator) ![]odbc_error.SqlState {
+    pub fn getErrors(self: Connection, allocator: Allocator) ![]odbc_error.SqlState {
         return try odbc_error.getErrors(allocator, odbc.HandleType.Connection, self.handle);
     }
 
-    pub fn getDiagnosticRecords(self: *Connection, allocator: Allocator) ![]odbc_error.DiagnosticRecord {
+    pub fn getDiagnosticRecords(self: Connection, allocator: Allocator) ![]odbc_error.DiagnosticRecord {
         return try odbc_error.getDiagnosticRecords(allocator, odbc.HandleType.Connection, self.handle);
     }
 };

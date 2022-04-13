@@ -29,7 +29,7 @@ pub const Environment = struct {
     /// Free the environment handle. If this succeeds, then it's invalid to try to use this environment
     /// again. If this fails, then the environment handle will still be active and must be deinitialized
     /// again after fixing the errors.
-    pub fn deinit(self: *Environment) !void {
+    pub fn deinit(self: Environment) !void {
         const result = c.SQLFreeHandle(@enumToInt(HandleType.Environment), self.handle);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
@@ -39,7 +39,7 @@ pub const Environment = struct {
         };
     }
 
-    pub fn getDataSource(self: *Environment, allocator: Allocator, direction: odbc.Direction) !?odbc.DataSource {
+    pub fn getDataSource(self: Environment, allocator: Allocator, direction: odbc.Direction) !?odbc.DataSource {
         var server_name_buf = try allocator.alloc(u8, 100);
         var description_buf = try allocator.alloc(u8, 100);
         var server_name_len: i16 = 0;
@@ -66,7 +66,7 @@ pub const Environment = struct {
         }
     }
 
-    pub fn getDriver(self: *Environment, allocator: Allocator, direction: odbc.Direction) !?odbc.Driver {
+    pub fn getDriver(self: Environment, allocator: Allocator, direction: odbc.Direction) !?odbc.Driver {
         var description_buf = try allocator.alloc(u8, 100);
         var attribute_buf = try allocator.alloc(u8, 100);
         var description_len: i16 = 0;
@@ -90,7 +90,7 @@ pub const Environment = struct {
         }
     }
 
-    pub fn getAllDrivers(self: *Environment, allocator: Allocator) ![]odbc.Driver {
+    pub fn getAllDrivers(self: Environment, allocator: Allocator) ![]odbc.Driver {
         var driver_list = std.ArrayList(odbc.Driver).init(allocator);
         var direction: odbc.Direction = .FetchFirst;
         while (true) {
@@ -104,7 +104,7 @@ pub const Environment = struct {
         return driver_list.toOwnedSlice();
     }
 
-    pub fn getAttribute(self: *Environment, attribute: Attribute) !AttributeValue {
+    pub fn getAttribute(self: Environment, attribute: Attribute) !AttributeValue {
         var value: i32 = 0;
         const result = c.SQLGetEnvAttr(self.handle, @enumToInt(attribute), &value, 0, null);
         return switch (@intToEnum(SqlReturn, result)) {
@@ -113,7 +113,7 @@ pub const Environment = struct {
         };
     }
 
-    pub fn setAttribute(self: *Environment, value: AttributeValue) !void {
+    pub fn setAttribute(self: Environment, value: AttributeValue) !void {
         const result = c.SQLSetEnvAttr(self.handle, @enumToInt(std.meta.activeTag(value)), @intToPtr(*anyopaque, value.getValue()), 0);
         return switch (@intToEnum(SqlReturn, result)) {
             .Success, .SuccessWithInfo => {},
@@ -123,24 +123,24 @@ pub const Environment = struct {
 
     /// Set the OdbcVersion attribute for this environment. You must set the version immediately after
     /// allocating an environment, either using this function or `setAttribute(.{ .OdbcVersion = <version> })`.
-    pub fn setOdbcVersion(self: *Environment, version: AttributeValue.OdbcVersion) !void {
+    pub fn setOdbcVersion(self: Environment, version: AttributeValue.OdbcVersion) !void {
         try self.setAttribute(.{ .OdbcVersion = version });
     }
 
-    pub fn getOdbcVersion(self: *Environment) !AttributeValue.OdbcVersion {
+    pub fn getOdbcVersion(self: Environment) !AttributeValue.OdbcVersion {
         const attr = try self.getAttribute(.OdbcVersion);
         return attr.OdbcVersion;
     }
 
-    pub fn getLastError(self: *const Environment) odbc_error.LastError {
+    pub fn getLastError(self: Environment) odbc_error.LastError {
         return odbc_error.getLastError(odbc.HandleType.Environment, self.handle);
     }
 
-    pub fn getErrors(self: *Environment, allocator: Allocator) ![]odbc_error.SqlState {
+    pub fn getErrors(self: Environment, allocator: Allocator) ![]odbc_error.SqlState {
         return try odbc_error.getErrors(allocator, HandleType.Environment, self.handle);
     }
 
-    pub fn getDiagnosticRecords(self: *Environment, allocator: Allocator) ![]odbc_error.DiagnosticRecord {
+    pub fn getDiagnosticRecords(self: Environment, allocator: Allocator) ![]odbc_error.DiagnosticRecord {
         return try odbc_error.getDiagnosticRecords(allocator, HandleType.Environment, self.handle);
     }
 };
