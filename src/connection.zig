@@ -70,44 +70,49 @@ pub const Connection = struct {
     }
 
     /// `browseConnect` is intended to be called multiple times. Each time, the user can pass a connection string with some, all, or none of
-    /// the parameters required to establish a connection. `browseConnect` will return a string that resembles a connection string, which
-    /// contains the information missing from the previous call.
+    /// the parameters required to establish a connection. After the parameters are sent to the driver, a new connection string will be written
+    /// to the `remaining_connection_string` buffer. This connection string will indicate the next parameters that the user or application should
+    /// send to `browseConnect`.
     ///
-    /// If the user passes all of the necessary parameters, then a connection is established and `browseConnect` will return `null`.
-    pub fn browseConnect(self: Connection, allocator: Allocator, partial_connection_string: []const u8) !?[]const u8 {
+    /// If this function runs successfully it will return the length of the next connection string. A value of `0` indicates that the connection
+    /// is complete and there is no more work to be done. A value that's longer than `remaining_connection_string.len` means that the new
+    /// connection string was too long to fit in the buffer. The entire buffer has been filled with as much of the string as possible, and the
+    /// return value is the total, untruncated length of the full connection string.
+    pub fn browseConnect(self: Connection, partial_connection_string: []const u8, remaining_connection_string: []u8) !usize {
         var out_string_len: c.SQLSMALLINT = 0;
-        var out_string_buffer = try allocator.alloc(u8, 100);
-        errdefer allocator.free(out_string_buffer);
 
-        run_loop: while (true) {
-            const result = c.SQLBrowseConnect(self.handle, partial_connection_string.ptr, partial_connection_string.len, out_string_buffer.ptr, out_string_buffer.len, &out_string_len);
-            switch (@intToEnum(SqlReturn, result)) {
-                .Success, .SuccessWithInfo => {
-                    // If SQLBrowseConnect returns success, then the user passed all required info and the connection should be established.
-                    // Set connected to true and return null to indicate that there is no more info needed.
-                    self.connected = true;
-                    allocator.free(out_string_buffer);
-                    return null;
+        const result = c.SQLBrowseConnect(
+            self.handle, 
+            @intToPtr([*]u8, @ptrToInt(partial_connection_string.ptr)), 
+            @intCast(c.SQLSMALLINT, partial_connection_string.len), 
+            remaining_connection_string.ptr, 
+            @intCast(c.SQLSMALLINT, remaining_connection_string.len), 
+            &out_string_len
+        );
+        switch (@intToEnum(SqlReturn, result)) {
+            .Success, .SuccessWithInfo => {
+                // If SQLBrowseConnect returns success, then the user passed all required info and the connection should be established.
+                // Set connected to true and return 0 to indicate that there is no more info needed.
+                self.connected = true;
+                return 0;
+            },
+            .NeedsData => {
+                if (std.mem.eql(u8, partial_connection_string, remaining_connection_string)) {
+                    // If SQLBrowseConnect returns NeedsData and the out string is unchanged from the input string, that means that there are
+                    // unrecoverable errors.
+                    return self.getLastError();
+                }
+                // Otherwise, when NeedsData is returned out_string_buffer contains a connection string-like value that indicates
+                // to the user what info they need to pass next
+                return @intCast(usize, out_string_len);
+            },
+            .InvalidHandle => @panic("Connection.browseConnect passed invalid handle"),
+            else => switch (self.getLastError()) {
+                error.StringRightTrunc => {
+                    return @intCast(usize, out_string_len);
                 },
-                .NeedsData => {
-                    if (std.mem.eql(u8, partial_connection_string, out_string_buffer)) {
-                        // If SQLBrowseConnect returns NeedsData and the out string is unchanged from the input string, that means that there are
-                        // unrecoverable errors.
-                        return self.getLastError();
-                    }
-                    // Otherwise, when NeedsData is returned out_string_buffer contains a connection string-like value that indicates
-                    // to the user what info they need to pass next
-                    return out_string_buffer;
-                },
-                .InvalidHandle => @panic("Connection.browseConnect passed invalid handle"),
-                else => switch (self.getLastError()) {
-                    error.StringRightTrunc => {
-                        out_string_buffer = try allocator.realloc(out_string_buffer, @intCast(usize, out_string_len) + 1);
-                        continue :run_loop;
-                    },
-                    else => |err| return err,
-                },
-            }
+                else => |err| return err,
+            },
         }
     }
 
