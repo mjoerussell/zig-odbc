@@ -1,7 +1,8 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const c = @import("c.zig");
+// const c = @import("c.zig");
+const c = @import("my_c.zig");
 
 const Environment = @import("environment.zig").Environment;
 
@@ -24,21 +25,21 @@ pub const Connection = struct {
 
     pub fn init(environment: *Environment) ReturnError!Connection {
         var result: Connection = undefined;
-        const alloc_result = c.SQLAllocHandle(@enumToInt(HandleType.Connection), environment.handle, @ptrCast([*c]?*anyopaque, &result.handle));
+        const alloc_result = c.SQLAllocHandle(@enumToInt(HandleType.connection), environment.handle, @ptrCast([*c]?*anyopaque, &result.handle));
         return switch (@intToEnum(SqlReturn, alloc_result)) {
-            .InvalidHandle => error.InvalidHandle,
-            .Error => error.Error,
+            .invalid_handle => error.InvalidHandle,
+            .err => error.Error,
             else => result,
         };
     }
 
-    /// Deinitialize the connection by disconnecting from the data source (if connected) and freeing the 
+    /// Deinitialize the connection by disconnecting from the data source (if connected) and freeing the
     /// connection handle.
     pub fn deinit(self: *Connection) !void {
         if (self.connected) try self.disconnect();
-        const result = c.SQLFreeHandle(@enumToInt(HandleType.Connection), self.handle);
+        const result = c.SQLFreeHandle(@enumToInt(HandleType.connection), self.handle);
         return switch (@intToEnum(SqlReturn, result)) {
-            .Success, .SuccessWithInfo => {},
+            .success, .success_with_info => {},
             else => self.getLastError(),
         };
     }
@@ -47,7 +48,7 @@ pub const Connection = struct {
     pub fn connect(self: *Connection, server_name: []const u8, user_name: []const u8, password: []const u8) !void {
         const result = c.SQLConnect(self.handle, @intToPtr([*c]u8, @ptrToInt(server_name.ptr)), @intCast(i16, server_name.len), @intToPtr([*c]u8, @ptrToInt(user_name.ptr)), @intCast(i16, user_name.len), @intToPtr([*c]u8, @ptrToInt(password.ptr)), @intCast(i16, password.len));
         return switch (@intToEnum(SqlReturn, result)) {
-            .Success, .SuccessWithInfo => {
+            .success, .success_with_info => {
                 self.connected = true;
             },
             // @todo Async handling
@@ -61,7 +62,7 @@ pub const Connection = struct {
     pub fn connectExtended(self: *Connection, connection_string: []const u8, completion: odbc.DriverCompletion) !void {
         const result = c.SQLDriverConnect(self.handle, null, @intToPtr([*c]u8, @ptrToInt(connection_string.ptr)), @intCast(c_short, connection_string.len), null, 0, null, @enumToInt(completion));
         return switch (@intToEnum(SqlReturn, result)) {
-            .Success, .SuccessWithInfo => {
+            .success, .success_with_info => {
                 self.connected = true;
             },
             // @todo Async handling
@@ -81,22 +82,15 @@ pub const Connection = struct {
     pub fn browseConnect(self: Connection, partial_connection_string: []const u8, remaining_connection_string: []u8) !usize {
         var out_string_len: c.SQLSMALLINT = 0;
 
-        const result = c.SQLBrowseConnect(
-            self.handle, 
-            @intToPtr([*]u8, @ptrToInt(partial_connection_string.ptr)), 
-            @intCast(c.SQLSMALLINT, partial_connection_string.len), 
-            remaining_connection_string.ptr, 
-            @intCast(c.SQLSMALLINT, remaining_connection_string.len), 
-            &out_string_len
-        );
+        const result = c.SQLBrowseConnect(self.handle, @intToPtr([*]u8, @ptrToInt(partial_connection_string.ptr)), @intCast(c.SQLSMALLINT, partial_connection_string.len), remaining_connection_string.ptr, @intCast(c.SQLSMALLINT, remaining_connection_string.len), &out_string_len);
         switch (@intToEnum(SqlReturn, result)) {
-            .Success, .SuccessWithInfo => {
+            .success, .success_with_info => {
                 // If SQLBrowseConnect returns success, then the user passed all required info and the connection should be established.
                 // Set connected to true and return 0 to indicate that there is no more info needed.
                 self.connected = true;
                 return 0;
             },
-            .NeedsData => {
+            .needs_data => {
                 if (std.mem.eql(u8, partial_connection_string, remaining_connection_string)) {
                     // If SQLBrowseConnect returns NeedsData and the out string is unchanged from the input string, that means that there are
                     // unrecoverable errors.
@@ -106,7 +100,7 @@ pub const Connection = struct {
                 // to the user what info they need to pass next
                 return @intCast(usize, out_string_len);
             },
-            .InvalidHandle => @panic("Connection.browseConnect passed invalid handle"),
+            .invalid_handle => @panic("Connection.browseConnect passed invalid handle"),
             else => switch (self.getLastError()) {
                 error.StringRightTrunc => {
                     return @intCast(usize, out_string_len);
@@ -122,7 +116,7 @@ pub const Connection = struct {
         if (!self.connected) return;
         const result = c.SQLDisconnect(self.handle);
         return switch (@intToEnum(SqlReturn, result)) {
-            .Success, .SuccessWithInfo => {
+            .success, .success_with_info => {
                 self.connected = false;
             },
             // @todo Async handling
@@ -132,10 +126,10 @@ pub const Connection = struct {
 
     /// Commit or rollback all open transactions on any statement associated with this connection.
     pub fn endTransaction(self: Connection, completion_type: odbc.CompletionType) !void {
-        const result = c.SQLEndTran(@enumToInt(HandleType.Connection), self.handle, @enumToInt(completion_type));
+        const result = c.SQLEndTran(@enumToInt(HandleType.connection), self.handle, @enumToInt(completion_type));
         return switch (@intToEnum(SqlReturn, result)) {
-            .Success, .SuccessWithInfo => {},
-            .InvalidHandle => @panic("Connection.endTransaction passed invalid handle"),
+            .success, .success_with_info => {},
+            .invalid_handle => @panic("Connection.endTransaction passed invalid handle"),
             else => self.getLastError(),
         };
     }
@@ -143,10 +137,10 @@ pub const Connection = struct {
     /// Cancel an in-progress function. This could be a function that returned `StillProcessing`, `NeedsData`, or
     /// a function that is actively processing on another thread.
     pub fn cancel(self: Connection) !void {
-        const result = c.SQLCancelHandle(@enumToInt(HandleType.Connection), self.handle);
+        const result = c.SQLCancelHandle(@enumToInt(HandleType.connection), self.handle);
         return switch (@intToEnum(SqlReturn, result)) {
-            .Success, .SuccessWithInfo => {},
-            .InvalidHandle => @panic("Connection.cancel passed invalid handle"),
+            .success, .success_with_info => {},
+            .invalid_handle => @panic("Connection.cancel passed invalid handle"),
             else => self.getLastError(),
         };
     }
@@ -157,7 +151,7 @@ pub const Connection = struct {
         var supported: c.SQLUSMALLINT = 0;
         const result = c.SQLGetFunctions(self.handle, @enumToInt(function_id), &supported);
         return switch (@intToEnum(SqlReturn, result)) {
-            .Success, .SuccessWithInfo => supported == c.SQL_TRUE,
+            .success, .success_with_info => supported == c.SQL_TRUE,
             else => false,
         };
     }
@@ -168,7 +162,7 @@ pub const Connection = struct {
         var result_list = std.ArrayList(odbc.FunctionId).init(allocator);
         const result = c.SQLGetFunctions(self.handle, c.SQL_API_ODBC3_ALL_FUNCTIONS, @ptrCast([*c]c_ushort, &result_buffer));
         switch (@intToEnum(SqlReturn, result)) {
-            .Success, .SuccessWithInfo => {
+            .success, .success_with_info => {
                 // Iterate over all of the function ids and check if they exist.
                 inline for (@typeInfo(odbc.FunctionId).Enum.fields) |field| {
                     // Recreates the following macro:
@@ -195,8 +189,8 @@ pub const Connection = struct {
         run_loop: while (true) {
             const result = c.SQLNativeSql(self.handle, sql_statement.ptr, sql_statement.len, out_statement_buffer.ptr, out_statement_buffer.len, &out_statement_len);
             switch (@intToEnum(SqlReturn, result)) {
-                .Success, .SuccessWithInfo => return out_statement_buffer,
-                .InvalidHandle => @panic("Connection.nativeSql passed invalid handle"),
+                .success, .success_with_info => return out_statement_buffer,
+                .invalid_handle => @panic("Connection.nativeSql passed invalid handle"),
                 else => switch (self.getLastError()) {
                     error.StringRightTrunc => {
                         // If the out string was truncated, realloc to the correct length and run again
@@ -217,14 +211,14 @@ pub const Connection = struct {
         run_loop: while (true) {
             const result = c.SQLGetInfo(self.handle, @enumToInt(info_type), result_buffer.ptr, @intCast(c.SQLSMALLINT, result_buffer.len), &result_string_length);
             switch (@intToEnum(SqlReturn, result)) {
-                .Success, .SuccessWithInfo => {
+                .success, .success_with_info => {
                     const value = info_type.getValue(result_buffer, @intCast(usize, result_string_length));
                     if (!value.isStringType()) {
                         allocator.free(result_buffer);
                     }
                     return value;
                 },
-                .InvalidHandle => @panic("Connection.getInfo passed invalid handle"),
+                .invalid_handle => @panic("Connection.getInfo passed invalid handle"),
                 else => switch (self.getLastError()) {
                     error.StringRightTrunc => {
                         result_buffer = try allocator.realloc(result_buffer, @intCast(usize, result_string_length));
@@ -244,9 +238,9 @@ pub const Connection = struct {
         attr_loop: while (true) {
             const result = c.SQLGetConnectAttr(self.handle, @enumToInt(attribute), value.ptr, @intCast(c_long, value.len), &attribute_str_len);
             switch (@intToEnum(SqlReturn, result)) {
-                .Success, .SuccessWithInfo => return attribute.getAttributeValue(value),
-                .NoData => return null,
-                .InvalidHandle => @panic("Connection.getAttribute passed invalid handle"),
+                .success, .success_with_info => return attribute.getAttributeValue(value),
+                .no_data => return null,
+                .invalid_handle => @panic("Connection.getAttribute passed invalid handle"),
                 else => switch (self.getLastError()) {
                     error.StringRightTrunc => {
                         value = try allocator.realloc(value, @intCast(usize, attribute_str_len) + 1);
@@ -274,21 +268,21 @@ pub const Connection = struct {
             },
         };
         return switch (@intToEnum(SqlReturn, result)) {
-            .Success, .SuccessWithInfo => {},
-            .InvalidHandle => @panic("Connection.setAttribute passed invalid handle"),
+            .success, .success_with_info => {},
+            .invalid_handle => @panic("Connection.setAttribute passed invalid handle"),
             else => self.getLastError(),
         };
     }
 
     pub fn getLastError(self: Connection) odbc_error.LastError {
-        return odbc_error.getLastError(odbc.HandleType.Connection, self.handle);
+        return odbc_error.getLastError(odbc.HandleType.connection, self.handle);
     }
 
     pub fn getErrors(self: Connection, allocator: Allocator) ![]odbc_error.SqlState {
-        return try odbc_error.getErrors(allocator, odbc.HandleType.Connection, self.handle);
+        return try odbc_error.getErrors(allocator, odbc.HandleType.connection, self.handle);
     }
 
     pub fn getDiagnosticRecords(self: Connection, allocator: Allocator) ![]odbc_error.DiagnosticRecord {
-        return try odbc_error.getDiagnosticRecords(allocator, odbc.HandleType.Connection, self.handle);
+        return try odbc_error.getDiagnosticRecords(allocator, odbc.HandleType.connection, self.handle);
     }
 };

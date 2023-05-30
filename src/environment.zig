@@ -18,10 +18,10 @@ pub const Environment = struct {
 
     pub fn init() ReturnError!Environment {
         var result: Environment = undefined;
-        const alloc_result = c.SQLAllocHandle(@enumToInt(HandleType.Environment), null, @ptrCast([*c]?*anyopaque, &result.handle));
+        const alloc_result = c.SQLAllocHandle(@enumToInt(HandleType.environment), null, @ptrCast([*c]?*anyopaque, &result.handle));
         return switch (@intToEnum(SqlReturn, alloc_result)) {
-            .InvalidHandle => @panic("Environment init passed invalid handle type"),
-            .Error => error.Error,
+            .invalid_handle => @panic("Environment init passed invalid handle type"),
+            .err => error.Error,
             else => result,
         };
     }
@@ -30,11 +30,11 @@ pub const Environment = struct {
     /// again. If this fails, then the environment handle will still be active and must be deinitialized
     /// again after fixing the errors.
     pub fn deinit(self: Environment) !void {
-        const result = c.SQLFreeHandle(@enumToInt(HandleType.Environment), self.handle);
+        const result = c.SQLFreeHandle(@enumToInt(HandleType.environment), self.handle);
         return switch (@intToEnum(SqlReturn, result)) {
-            .Success, .SuccessWithInfo => {},
-            .InvalidHandle => @panic("Environment deinit passed invalid handle type"), // Handle type is hardcoded above, this should never be reached
-            .Error => self.getLastError(),
+            .success, .success_with_info => {},
+            .invalid_handle => @panic("Environment deinit passed invalid handle type"), // Handle type is hardcoded above, this should never be reached
+            .err => self.getLastError(),
             else => {},
         };
     }
@@ -48,11 +48,11 @@ pub const Environment = struct {
         run_loop: while (true) {
             const result = c.SQLDataSources(self.handle, @enumToInt(direction), server_name_buf.ptr, @intCast(i16, server_name_buf.len), &server_name_len, description_buf.ptr, @intCast(i16, description_buf.len), &description_len);
             switch (@intToEnum(SqlReturn, result)) {
-                .Success => return odbc.DataSource{
+                .success => return odbc.DataSource{
                     .server_name = server_name_buf[0..@intCast(usize, server_name_len)],
                     .description = description_buf[0..@intCast(usize, description_len)],
                 },
-                .SuccessWithInfo => switch (self.getLastError()) {
+                .success_with_info => switch (self.getLastError()) {
                     error.StringRightTrunc => {
                         server_name_buf = try allocator.resize(server_name_buf, @intCast(usize, server_name_len + 1));
                         description_buf = try allocator.resize(description_buf, @intCast(usize, description_len + 1));
@@ -60,7 +60,7 @@ pub const Environment = struct {
                     },
                     else => |err| return err,
                 },
-                .NoData => return null,
+                .no_data => return null,
                 else => return self.getLastError(),
             }
         }
@@ -75,9 +75,9 @@ pub const Environment = struct {
         run_loop: while (true) {
             const result = c.SQLDrivers(self.handle, @enumToInt(direction), description_buf.ptr, @intCast(i16, description_buf.len), &description_len, attribute_buf.ptr, @intCast(i16, attribute_buf.len), &attributes_len);
             switch (@intToEnum(SqlReturn, result)) {
-                .Success => return odbc.Driver{ .description = description_buf[0..@intCast(usize, description_len)], .attributes = attribute_buf[0..@intCast(usize, attributes_len)] },
-                .NoData => return null,
-                .SuccessWithInfo => switch (self.getLastError()) {
+                .success => return odbc.Driver{ .description = description_buf[0..@intCast(usize, description_len)], .attributes = attribute_buf[0..@intCast(usize, attributes_len)] },
+                .no_data => return null,
+                .success_with_info => switch (self.getLastError()) {
                     error.StringRightTrunc => {
                         description_buf = try allocator.resize(description_buf, @intCast(usize, description_len + 1));
                         attribute_buf = try allocator.resize(attribute_buf, @intCast(usize, attributes_len + 1));
@@ -108,7 +108,7 @@ pub const Environment = struct {
         var value: i32 = 0;
         const result = c.SQLGetEnvAttr(self.handle, @enumToInt(attribute), &value, 0, null);
         return switch (@intToEnum(SqlReturn, result)) {
-            .Success, .SuccessWithInfo => attribute.getAttributeValue(value),
+            .success, .success_with_info => attribute.getAttributeValue(value),
             else => self.getLastError(),
         };
     }
@@ -116,7 +116,7 @@ pub const Environment = struct {
     pub fn setAttribute(self: Environment, value: AttributeValue) !void {
         const result = c.SQLSetEnvAttr(self.handle, @enumToInt(std.meta.activeTag(value)), @intToPtr(*anyopaque, value.getValue()), 0);
         return switch (@intToEnum(SqlReturn, result)) {
-            .Success, .SuccessWithInfo => {},
+            .success, .success_with_info => {},
             else => self.getLastError(),
         };
     }
@@ -133,14 +133,14 @@ pub const Environment = struct {
     }
 
     pub fn getLastError(self: Environment) odbc_error.LastError {
-        return odbc_error.getLastError(odbc.HandleType.Environment, self.handle);
+        return odbc_error.getLastError(odbc.HandleType.environment, self.handle);
     }
 
     pub fn getErrors(self: Environment, allocator: Allocator) ![]odbc_error.SqlState {
-        return try odbc_error.getErrors(allocator, HandleType.Environment, self.handle);
+        return try odbc_error.getErrors(allocator, HandleType.environment, self.handle);
     }
 
     pub fn getDiagnosticRecords(self: Environment, allocator: Allocator) ![]odbc_error.DiagnosticRecord {
-        return try odbc_error.getDiagnosticRecords(allocator, HandleType.Environment, self.handle);
+        return try odbc_error.getDiagnosticRecords(allocator, HandleType.environment, self.handle);
     }
 };

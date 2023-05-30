@@ -1,23 +1,23 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const LibExeObjStep = std.build.LibExeObjStep;
-const Pkg = std.build.Pkg;
+const CompileStep = std.build.CompileStep;
 
-pub fn buildPkg(exe: *LibExeObjStep, package_name: []const u8) void {
+pub const odbc_library_name = if (builtin.os.tag == .windows) "odbc32" else "odbc";
+
+pub fn buildPkg(exe: *CompileStep, package_name: []const u8) void {
+    addOdbcLibraries(exe);
+    exe.addAnonymousModule(package_name, .{
+        .source_file = .{ .path = "zig-odbc/src/lib.zig" },
+    });
+}
+
+pub fn addOdbcLibraries(exe: *CompileStep) void {
     exe.linkLibC();
 
-    const odbc_library_name = if (builtin.os.tag == .windows) "odbc32" else "odbc";
     if (builtin.os.tag == .macos) {
         exe.addIncludeDir("/usr/local/include");
         exe.addIncludeDir("/usr/local/lib");
     }
 
     exe.linkSystemLibrary(odbc_library_name);
-
-    const self_pkg = Pkg{
-        .name = package_name,
-        .path = .{ .path = "zig-odbc/src/lib.zig" },
-    };
-
-    exe.addPackage(self_pkg);
 }

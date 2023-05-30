@@ -14,9 +14,23 @@ const unionInitEnum = util.unionInitEnum;
 const sliceToValue = util.sliceToValue;
 
 /// Return codes that might be returned from ODBC functions.
-pub const SqlReturn = enum(odbc.SQLRETURN) { Success = odbc.SQL_SUCCESS, SuccessWithInfo = odbc.SQL_SUCCESS_WITH_INFO, NeedsData = odbc.SQL_NEED_DATA, StillExecuting = odbc.SQL_STILL_EXECUTING, Error = odbc.SQL_ERROR, InvalidHandle = odbc.SQL_INVALID_HANDLE, NoData = odbc.SQL_NO_DATA, ParamDataAvailable = odbc.SQL_PARAM_DATA_AVAILABLE };
+pub const SqlReturn = enum(c_short) {
+    success = 0,
+    success_with_info = 1,
+    needs_data = 99,
+    still_executing = 2,
+    err = -1,
+    invalid_handle = -2,
+    no_data = 100,
+    param_data_available = 101,
+};
 
-pub const HandleType = enum(odbc.SQLSMALLINT) { Environment = odbc.SQL_HANDLE_ENV, Connection = odbc.SQL_HANDLE_DBC, Statement = odbc.SQL_HANDLE_STMT, Descriptor = odbc.SQL_HANDLE_DESC };
+pub const HandleType = enum(c_short) {
+    environment = 1,
+    connection = 2,
+    statement = 3,
+    descriptor = 4,
+};
 
 pub const Driver = struct {
     description: []const u8,
@@ -30,53 +44,60 @@ pub const Driver = struct {
 
 pub const DataSource = struct { server_name: []const u8, description: []const u8 };
 
-pub const DriverCompletion = enum(c_ushort) { 
+pub const DriverCompletion = enum(c_ushort) {
     /// If the user does not provide enough information in the connection string to establish a connection,
     /// return an error.
-    NoPrompt = odbc.SQL_DRIVER_NOPROMPT, 
+    NoPrompt = 0,
     /// If the user does not provide enough information in the connection string to establish a connection,
     /// display a window prompt that will allow them to fill out any other information.
-    Complete = odbc.SQL_DRIVER_COMPLETE, 
+    Complete = 1,
     /// Always prompt the user for connection information, using the values provided in the connection string
     /// as default values.
-    Prompt = odbc.SQL_DRIVER_PROMPT, 
+    Prompt = 2,
     /// If the user does not provide enough information in the connection string to establish a connection,
     /// display a window prompt that will allow them to fill out only fields that are required in order to connection.
-    CompleteRequired = odbc.SQL_DRIVER_COMPLETE_REQUIRED 
+    CompleteRequired = 3,
 };
 
-pub const Direction = enum(c_ushort) { 
+pub const Direction = enum(c_ushort) {
     /// Fetch the next record in the list. If this is used for the first fetch call, then the first record
     /// will be returned. If `FetchFirstUser` was used before this, then this will get the next user record.
     /// The same is true for `FetchFirstSystem`.
-    FetchNext = odbc.SQL_FETCH_NEXT, 
+    FetchNext = 1,
     /// Fetch the first record in the list.
-    FetchFirst = odbc.SQL_FETCH_FIRST, 
+    FetchFirst = 2,
     /// Fetch the first user record.
-    FetchFirstUser = odbc.SQL_FETCH_FIRST_USER, 
+    FetchFirstUser = 31,
     /// Fetch the first system record.
-    FetchFirstSystem = odbc.SQL_FETCH_FIRST_SYSTEM 
+    FetchFirstSystem = 32,
 };
 
-pub const DiagnosticIdentifier = enum(odbc.SQLSMALLINT) { CursorRowCount = odbc.SQL_DIAG_CURSOR_ROW_COUNT, DynamicFunction = odbc.SQL_DIAG_DYNAMIC_FUNCTION, DynamicFunctionCode = odbc.SQL_DIAG_DYNAMIC_FUNCTION_CODE, Number = odbc.SQL_DIAG_NUMBER, ReturnCode = odbc.SQL_DIAG_RETURNCODE, RowCount = odbc.SQL_DIAG_ROW_COUNT };
+pub const DiagnosticIdentifier = enum(c_short) {
+    CursorRowCount = -1249,
+    DynamicFunction = 7,
+    DynamicFunctionCode = 12,
+    Number = 2,
+    ReturnCode = 1,
+    RowCount = 3,
+};
 
 pub const Nullable = enum(i32) {
-    Nullable = odbc.SQL_NULLABLE,
-    NonNullable = odbc.SQL_NO_NULLS,
-    Unknown = odbc.SQL_NULLABLE_UNKNOWN,
+    NonNullable = 0,
+    Nullable = 1,
+    Unknown = 2,
 };
 
-pub const CompletionType = enum(odbc.SQLSMALLINT) {
-    commit = odbc.SQL_COMMIT,
-    rollback = odbc.SQL_ROLLBACK,
+pub const CompletionType = enum(c_short) {
+    commit = 0,
+    rollback = 1,
 };
 
 /// The attributes that can be set or read for an Environment.
 pub const EnvironmentAttribute = enum(i32) {
-    OdbcVersion = odbc.SQL_ATTR_ODBC_VERSION,
-    ConnectionPool = odbc.SQL_ATTR_CONNECTION_POOLING,
-    ConnectionPoolMatch = odbc.SQL_ATTR_CP_MATCH,
-    OutputNts = odbc.SQL_ATTR_OUTPUT_NTS,
+    OdbcVersion = 200,
+    ConnectionPool = 201,
+    ConnectionPoolMatch = 202,
+    OutputNts = 10_001,
 
     /// Convert an integer attribute value into a structured AttributeValue. Uses the current active
     /// Attribute to pick the correct union tag, since different attributes use the same underlying values
@@ -99,17 +120,20 @@ pub const EnvironmentAttributeValue = union(EnvironmentAttribute) {
     OutputNts: bool,
 
     pub const ConnectionPool = enum(u32) {
-        Off = odbc.SQL_CP_OFF,
-        OnePerDriver = odbc.SQL_CP_ONE_PER_DRIVER,
-        OnePerEnvironment = odbc.SQL_CP_DRIVER_AWARE,
+        Off = 0,
+        OnePerDriver = 1,
+        OnePerEnvironment = 2,
     };
 
-    pub const ConnectionPoolMatch = enum(u32) { Strict = odbc.SQL_CP_STRICT_MATCH, Relaxed = odbc.SQL_CP_RELAXED_MATCH };
+    pub const ConnectionPoolMatch = enum(u32) {
+        Strict = 0,
+        Relaxed = 1,
+    };
 
     pub const OdbcVersion = enum(i32) {
-        Odbc2 = odbc.SQL_OV_ODBC2,
-        Odbc3 = odbc.SQL_OV_ODBC3,
-        Odbc380 = odbc.SQL_OV_ODBC3_80,
+        Odbc2 = 2,
+        Odbc3 = 3,
+        Odbc380 = 380,
     };
 
     /// Get the underlying integer value that the current attribute value represents.
@@ -126,44 +150,41 @@ pub const EnvironmentAttributeValue = union(EnvironmentAttribute) {
 };
 
 pub const ConnectionAttribute = enum(i32) {
-    AccessMode = odbc.SQL_ATTR_ACCESS_MODE,
-    AsyncEventHandle = odbc.SQL_ATTR_ASYNC_STMT_EVENT,
-    EnableAsync = odbc.SQL_ATTR_ASYNC_ENABLE,
-    AutoIpd = odbc.SQL_ATTR_AUTO_IPD,
-    Autocommit = odbc.SQL_ATTR_AUTOCOMMIT,
-    ConnectionDead = odbc.SQL_ATTR_CONNECTION_DEAD,
-    ConnectionTimeout = odbc.SQL_ATTR_CONNECTION_TIMEOUT,
-    CurrentCatalog = odbc.SQL_ATTR_CURRENT_CATALOG,
-    EnlistInDtc = odbc.SQL_ATTR_ENLIST_IN_DTC,
-    LoginTimeout = odbc.SQL_ATTR_LOGIN_TIMEOUT,
-    MetadataId = odbc.SQL_ATTR_METADATA_ID,
-    OdbcCursors = odbc.SQL_ATTR_ODBC_CURSORS,
-    PacketSize = odbc.SQL_ATTR_PACKET_SIZE,
-    QuietMode = odbc.SQL_ATTR_QUIET_MODE,
-    Trace = odbc.SQL_ATTR_TRACE,
-    Tracefile = odbc.SQL_ATTR_TRACEFILE,
-    TranslateLib = odbc.SQL_ATTR_TRANSLATE_LIB,
-    TranslateOption = odbc.SQL_ATTR_TRANSLATE_OPTION,
-    TransactionIsolation = odbc.SQL_ATTR_TXN_ISOLATION,
+    AccessMode = 101,
+    EnableAsync = 4,
+    AutoIpd = 10_001,
+    Autocommit = 102,
+    ConnectionDead = 1209,
+    ConnectionTimeout = 113,
+    CurrentCatalog = 109,
+    EnlistInDtc = 1207,
+    LoginTimeout = 103,
+    MetadataId = 10_014,
+    OdbcCursors = 110,
+    PacketSize = 112,
+    QuietMode = 111,
+    Trace = 104,
+    Tracefile = 105,
+    TranslateLib = 106,
+    TranslateOption = 107,
+    TransactionIsolation = 108,
 
     pub fn getAttributeValue(comptime self: ConnectionAttribute, bytes: []u8) ConnectionAttributeValue {
         return unionInitEnum(ConnectionAttributeValue, self, switch (self) {
             .AccessMode => @intToEnum(ConnectionAttributeValue.AccessMode, sliceToValue(u32, bytes)),
-            .AsyncEventHandle => sliceToValue(odbc.SQLPOINTER, bytes),
-            .EnableAsyncConnectFunctions => sliceToValue(u32, bytes) == odbc.SQL_ASYNC_DBC_ENABLE_ON,
-            .EnableAsync => sliceToValue(usize, bytes) == odbc.SQL_ASYNC_ENABLE_ON,
-            .AutoIpd => sliceToValue(u32, bytes) == odbc.SQL_TRUE,
-            .Autocommit => sliceToValue(u32, bytes) == odbc.SQL_AUTOCOMMIT_ON,
-            .ConnectionDead => sliceToValue(u32, bytes) == odbc.SQL_CD_TRUE,
+            .EnableAsync => sliceToValue(usize, bytes) == 1,
+            .AutoIpd => sliceToValue(u32, bytes) == 1,
+            .Autocommit => sliceToValue(u32, bytes) == 1,
+            .ConnectionDead => sliceToValue(u32, bytes) == 1,
             .ConnectionTimeout => sliceToValue(u32, bytes),
             .CurrentCatalog => bytes,
-            .EnlistInDtc => sliceToValue(odbc.SQLPOINTER, bytes),
+            .EnlistInDtc => sliceToValue(*anyopaque, bytes),
             .LoginTimeout => sliceToValue(u32, bytes),
-            .MetadataId => sliceToValue(u32, bytes) == odbc.SQL_TRUE,
+            .MetadataId => sliceToValue(u32, bytes) == 1,
             .OdbcCursors => @intToEnum(ConnectionAttributeValue.OdbcCursors, sliceToValue(usize, bytes)),
             .PacketSize => sliceToValue(u32, bytes),
             .QuietMode => sliceToValue(odbc.HWND, bytes),
-            .Trace => sliceToValue(u32, bytes) == odbc.SQL_OPT_TRACE_ON,
+            .Trace => sliceToValue(u32, bytes) == 1,
             .Tracefile => bytes[0.. :0],
             .TranslateLib => bytes[0.. :0],
             .TranslateOption => sliceToValue(u32, bytes),
@@ -174,49 +195,55 @@ pub const ConnectionAttribute = enum(i32) {
 
 pub const ConnectionAttributeValue = union(ConnectionAttribute) {
     AccessMode: AccessMode,
-    AsyncEventHandle: odbc.SQLPOINTER,
     EnableAsync: bool,
     AutoIpd: bool,
     Autocommit: bool,
     ConnectionDead: bool,
     ConnectionTimeout: u32,
     CurrentCatalog: []u8,
-    EnlistInDtc: odbc.SQLPOINTER,
+    EnlistInDtc: *anyopaque,
     LoginTimeout: u32,
     MetadataId: bool,
     OdbcCursors: OdbcCursors,
     PacketSize: u32,
-    QuietMode: odbc.HWND,
+    QuietMode: *anyopaque,
     Trace: bool,
     Tracefile: [:0]u8,
     TranslateLib: [:0]u8,
     TranslateOption: u32,
     TransactionIsolation: u32,
 
-    pub const AccessMode = enum(u32) { ReadOnly = odbc.SQL_MODE_READ_ONLY, ReadWrite = odbc.SQL_MODE_READ_WRITE };
+    pub const AccessMode = enum(u32) {
+        ReadOnly = 1,
+        ReadWrite = 0,
+    };
 
-    pub const OdbcCursors = enum(usize) { UseOdbc = odbc.SQL_CUR_USE_ODBC, UseIfNeeded = odbc.SQL_CUR_USE_IF_NEEDED, UseDriver = odbc.SQL_CUR_USE_DRIVER };
+    pub const OdbcCursors = enum(usize) {
+        UseOdbc = 1,
+        UseIfNeeded = 0,
+        UseDriver = 2,
+    };
 
     pub fn getValue(self: ConnectionAttributeValue, allocator: std.mem.Allocator) ![]u8 {
         const value_buffer: []u8 = switch (self) {
             .AccessMode => |v| toBytes(@enumToInt(v))[0..],
             .AsyncEventHandle => |v| toBytes(@ptrToInt(v))[0..],
-            .EnableAsync => |v| if (v) toBytes(@as(usize, odbc.SQL_ASYNC_ENABLE_ON))[0..] else toBytes(@as(usize, odbc.SQL_ASYNC_ENABLE_OFF))[0..],
-            .AutoIpd => |v| if (v) toBytes(@as(u32, odbc.SQL_TRUE))[0..] else toBytes(@as(u32, odbc.SQL_FALSE))[0..],
+            .EnableAsync => |v| if (v) toBytes(@as(usize, 1))[0..] else toBytes(@as(usize, 0))[0..],
+            .AutoIpd => |v| if (v) toBytes(@as(u32, 1))[0..] else toBytes(@as(u32, 0))[0..],
             .Autocommit => |v| blk: {
-                const sql_val: u32 = if (v) odbc.SQL_AUTOCOMMIT_ON else odbc.SQL_AUTOCOMMIT_OFF;
+                const sql_val: u32 = if (v) 1 else 0;
                 break :blk toBytes(sql_val)[0..];
             },
-            .ConnectionDead => |v| if (v) toBytes(@as(u32, odbc.SQL_CD_TRUE))[0..] else toBytes(@as(u32, odbc.SQL_CD_FALSE))[0..],
+            .ConnectionDead => |v| if (v) toBytes(@as(u32, 1))[0..] else toBytes(@as(u32, 0))[0..],
             .ConnectionTimeout => |v| toBytes(v)[0..],
             .CurrentCatalog => |v| v,
             .EnlistInDtc => |v| toBytes(@ptrToInt(v))[0..],
             .LoginTimeout => |v| toBytes(v)[0..],
-            .MetadataId => |v| if (v) toBytes(@as(u32, odbc.SQL_TRUE))[0..] else toBytes(@as(u32, odbc.SQL_FALSE))[0..],
+            .MetadataId => |v| if (v) toBytes(@as(u32, 1))[0..] else toBytes(@as(u32, 0))[0..],
             .OdbcCursors => |v| toBytes(@enumToInt(v))[0..],
             .PacketSize => |v| toBytes(v)[0..],
             .QuietMode => |v| toBytes(@ptrToInt(v))[0..],
-            .Trace => |v| if (v) toBytes(@as(u32, odbc.SQL_OPT_TRACE_ON))[0..] else toBytes(@as(u32, odbc.SQL_OPT_TRACE_OFF))[0..],
+            .Trace => |v| if (v) toBytes(@as(u32, 1))[0..] else toBytes(@as(u32, 0))[0..],
             .Tracefile => |v| v,
             .TranslateLib => |v| v,
             .TranslateOption => |v| toBytes(v)[0..],
@@ -231,68 +258,68 @@ pub const ConnectionAttributeValue = union(ConnectionAttribute) {
 
 pub const FunctionId = enum(c_ushort) {
     // ISO 92 standards-compliance level
-    SQLAllocHandle = odbc.SQL_API_SQLALLOCHANDLE,
-    SQLBindCol = odbc.SQL_API_SQLBINDCOL,
-    SQLCancel = odbc.SQL_API_SQLCANCEL,
-    SQLCloseCursor = odbc.SQL_API_SQLCLOSECURSOR,
-    SQLColAttribue = odbc.SQL_API_SQLCOLATTRIBUTE,
-    SQLConnect = odbc.SQL_API_SQLCONNECT,
-    SQLCopyDesc = odbc.SQL_API_SQLCOPYDESC,
-    SQLDataSources = odbc.SQL_API_SQLDATASOURCES,
-    SQLDescribeCol = odbc.SQL_API_SQLDESCRIBECOL,
-    SQLDisconnect = odbc.SQL_API_SQLDISCONNECT,
-    SQLDrivers = odbc.SQL_API_SQLDRIVERS,
-    SQLEndTran = odbc.SQL_API_SQLENDTRAN,
-    SQLExecDirect = odbc.SQL_API_SQLEXECDIRECT,
-    SQLExecute = odbc.SQL_API_SQLEXECUTE,
-    SQLFetch = odbc.SQL_API_SQLFETCH,
-    SQLFetchScroll = odbc.SQL_API_SQLFETCHSCROLL,
-    SQLFreeHandle = odbc.SQL_API_SQLFREEHANDLE,
-    SQLFreeStmt = odbc.SQL_API_SQLFREESTMT,
-    SQLGetConnectAttr = odbc.SQL_API_SQLGETCONNECTATTR,
-    SQLGetCursorName = odbc.SQL_API_SQLGETCURSORNAME,
-    SQLGetData = odbc.SQL_API_SQLGETDATA,
-    SQLGetDescField = odbc.SQL_API_SQLGETDESCFIELD,
-    SQLGetDescRec = odbc.SQL_API_SQLGETDESCREC,
-    SQLGetDiagField = odbc.SQL_API_SQLGETDIAGFIELD,
-    SQLGetDiagRec = odbc.SQL_API_SQLGETDIAGREC,
-    SQLGetEnvAttr = odbc.SQL_API_SQLGETENVATTR,
-    SQLGetFunctions = odbc.SQL_API_SQLGETFUNCTIONS,
-    SQLGetInfo = odbc.SQL_API_SQLGETINFO,
-    SQLGetStmtAttr = odbc.SQL_API_SQLGETSTMTATTR,
-    SQLGetTypeInfo = odbc.SQL_API_SQLGETTYPEINFO,
-    SQLNumResultCols = odbc.SQL_API_SQLNUMRESULTCOLS,
-    SQLParamData = odbc.SQL_API_SQLPARAMDATA,
-    SQLPrepare = odbc.SQL_API_SQLPREPARE,
-    SQLPutData = odbc.SQL_API_SQLPUTDATA,
-    SQLRowCount = odbc.SQL_API_SQLROWCOUNT,
-    SQLSetConnectAttr = odbc.SQL_API_SQLSETCONNECTATTR,
-    SQLSetCursorName = odbc.SQL_API_SQLSETCURSORNAME,
-    SQLSetDescField = odbc.SQL_API_SQLSETDESCFIELD,
-    SQLSetDescRec = odbc.SQL_API_SQLSETDESCREC,
-    SQLSetEnvAttr = odbc.SQL_API_SQLSETENVATTR,
-    SQLSetStmtAttr = odbc.SQL_API_SQLSETSTMTATTR,
+    SQLAllocHandle = 1001,
+    SQLBindCol = 4,
+    SQLCancel = 5,
+    SQLCloseCursor = 1003,
+    SQLColAttribue = 6,
+    SQLConnect = 7,
+    SQLCopyDesc = 1004,
+    SQLDataSources = 57,
+    SQLDescribeCol = 8,
+    SQLDisconnect = 9,
+    SQLDrivers = 71,
+    SQLEndTran = 1005,
+    SQLExecDirect = 11,
+    SQLExecute = 12,
+    SQLFetch = 13,
+    SQLFetchScroll = 1021,
+    SQLFreeHandle = 1006,
+    SQLFreeStmt = 16,
+    SQLGetConnectAttr = 1007,
+    SQLGetCursorName = 17,
+    SQLGetData = 43,
+    SQLGetDescField = 1008,
+    SQLGetDescRec = 1009,
+    SQLGetDiagField = 1010,
+    SQLGetDiagRec = 1011,
+    SQLGetEnvAttr = 1012,
+    SQLGetFunctions = 44,
+    SQLGetInfo = 45,
+    SQLGetStmtAttr = 1014,
+    SQLGetTypeInfo = 47,
+    SQLNumResultCols = 18,
+    SQLParamData = 48,
+    SQLPrepare = 19,
+    SQLPutData = 49,
+    SQLRowCount = 20,
+    SQLSetConnectAttr = 1016,
+    SQLSetCursorName = 21,
+    SQLSetDescField = 1017,
+    SQLSetDescRec = 1018,
+    SQLSetEnvAttr = 1019,
+    SQLSetStmtAttr = 1020,
     // Open Groups standards-compliance level
-    SQLColumns = odbc.SQL_API_SQLCOLUMNS,
-    SQLSpecialColumns = odbc.SQL_API_SQLSPECIALCOLUMNS,
-    SQLStatistics = odbc.SQL_API_SQLSTATISTICS,
-    SQLTables = odbc.SQL_API_SQLTABLES,
+    SQLColumns = 40,
+    SQLSpecialColumns = 52,
+    SQLStatistics = 53,
+    SQLTables = 54,
     // ODBC standards-compliance level
-    SQLBindParameter = odbc.SQL_API_SQLBINDPARAMETER,
-    SQLBrowseConnect = odbc.SQL_API_SQLBROWSECONNECT,
-    SQLBulkOperations = odbc.SQL_API_SQLBULKOPERATIONS,
-    SQLColumnPrivileges = odbc.SQL_API_SQLCOLUMNPRIVILEGES,
-    SQLDescribeParam = odbc.SQL_API_SQLDESCRIBEPARAM,
-    SQLDriverConnect = odbc.SQL_API_SQLDRIVERCONNECT,
-    SQLForeignKeys = odbc.SQL_API_SQLFOREIGNKEYS,
-    SQLMoreResults = odbc.SQL_API_SQLMORERESULTS,
-    SQLNativeSql = odbc.SQL_API_SQLNATIVESQL,
-    SQLNumParams = odbc.SQL_API_SQLNUMPARAMS,
-    SQLPrimaryKeys = odbc.SQL_API_SQLPRIMARYKEYS,
-    SQLProcedureColumns = odbc.SQL_API_SQLPROCEDURECOLUMNS,
-    SQLProcedures = odbc.SQL_API_SQLPROCEDURES,
-    SQLSetPos = odbc.SQL_API_SQLSETPOS,
-    SQLTablePrivileges = odbc.SQL_API_SQLTABLEPRIVILEGES,
+    SQLBindParameter = 72,
+    SQLBrowseConnect = 55,
+    SQLBulkOperations = 24,
+    SQLColumnPrivileges = 56,
+    SQLDescribeParam = 58,
+    SQLDriverConnect = 41,
+    SQLForeignKeys = 60,
+    SQLMoreResults = 61,
+    SQLNativeSql = 62,
+    SQLNumParams = 63,
+    SQLPrimaryKeys = 65,
+    SQLProcedureColumns = 66,
+    SQLProcedures = 67,
+    SQLSetPos = 68,
+    SQLTablePrivileges = 70,
 };
 
 /// Information types that are used with Connection.getInfo
@@ -1124,28 +1151,28 @@ pub const CType = enum(odbc.SQLSMALLINT) {
     pub const Interval = struct {
         pub const IntervalType = enum(odbc.SQLSMALLINT) { Year = 1, Month = 2, Day = 3, Hour = 4, Minute = 5, Seconds = 6, YearToMonth = 7, DayToHour = 8, DayToMinute = 9, DayToSecond = 10, HourToMinute = 11, HourToSecond = 12, MinuteToSecond = 13 };
 
-        pub const YearMonth = packed struct { year: u32, month: u32 };
+        pub const YearMonth = extern struct { year: u32, month: u32 };
 
-        pub const DaySecond = packed struct { day: u32, hour: u32, minute: u32, second: u32, fraction: u32 };
+        pub const DaySecond = extern struct { day: u32, hour: u32, minute: u32, second: u32, fraction: u32 };
 
         interval_type: IntervalType,
         // interval_sign: IntervalSign,
         int_val: union(enum) { year_month: YearMonth, day_second: DaySecond },
     };
 
-    pub const SqlDate = packed struct {
+    pub const SqlDate = extern struct {
         year: odbc.SQLSMALLINT,
         month: c_ushort,
         day: c_ushort,
     };
 
-    pub const SqlTime = packed struct {
+    pub const SqlTime = extern struct {
         hour: c_ushort,
         minute: c_ushort,
         second: c_ushort,
     };
 
-    pub const SqlTimestamp = packed struct {
+    pub const SqlTimestamp = extern struct {
         year: odbc.SQLSMALLINT,
         month: c_ushort,
         day: c_ushort,
@@ -1155,7 +1182,7 @@ pub const CType = enum(odbc.SQLSMALLINT) {
         fraction: c_ushort,
     };
 
-    pub const SqlNumeric = packed struct {
+    pub const SqlNumeric = extern struct {
         precision: odbc.SQLCHAR,
         scale: odbc.SQLSCHAR,
         sign: odbc.SQLCHAR,
@@ -1188,7 +1215,7 @@ pub const CType = enum(odbc.SQLSMALLINT) {
         }
     };
 
-    pub const SqlGuid = packed struct { data_1: u32, data_2: u16, data_3: u16, data_4: u8 };
+    pub const SqlGuid = extern struct { data_1: u32, data_2: u16, data_3: u16, data_4: u8 };
 
     pub fn toType(comptime odbc_type: CType) type {
         return switch (odbc_type) {
@@ -1407,14 +1434,14 @@ pub const StatementAttribute = enum(i32) {
             .CursorScrollable => .{ .CursorScrollable = value == odbc.SQL_SCROLLABLE },
             .CursorSensitivity => .{ .CursorSensitivity = @intToEnum(StatementAttributeValue.CursorSensitivity, value) },
             .CursorType => .{ .CursorType = @intToEnum(StatementAttributeValue.CursorType, value) },
-            .EnableAutoIpd => .{ .EnableAutoIpd = value == odbc.SQL_TRUE },
+            .EnableAutoIpd => .{ .EnableAutoIpd = value == 1 },
             .FetchBookmarkPointer => .{ .FetchBookmarkPointer = @intToPtr(*isize, value) },
             .ImpParamDescription => .{ .ImpParamDescription = @intToPtr(*anyopaque, value) },
             .ImpRowDescription => .{ .ImpRowDescription = @intToPtr(*anyopaque, value) },
             .KeysetSize => .{ .KeysetSize = value },
             .MaxLength => .{ .MaxLength = value },
             .MaxRows => .{ .MaxRows = value },
-            .MetadataId => .{ .MetadataId = value == odbc.SQL_TRUE },
+            .MetadataId => .{ .MetadataId = value == 1 },
             .NoScan => .{ .NoScan = value == odbc.SQL_NOSCAN_ON },
             .ParamBindOffsetPointer => .{ .ParamBindOffsetPointer = @intToPtr(?*anyopaque, value) },
             .ParamBindType => .{ .ParamBindType = value },
@@ -1523,7 +1550,7 @@ pub const StatementAttributeValue = union(StatementAttribute) {
     };
 
     pub fn valueAsBytes(attr_value: StatementAttributeValue, allocator: Allocator) ![]const u8 {
-        const bytes: []u8 = switch (attr_value) {
+        const bytes: []const u8 = switch (attr_value) {
             .AppParamDescription => |v| toBytes(@ptrToInt(v))[0..],
             .AppRowDescription => |v| toBytes(@ptrToInt(v))[0..],
             .Concurrency => |v| toBytes(@enumToInt(v))[0..],
@@ -1534,7 +1561,7 @@ pub const StatementAttributeValue = union(StatementAttribute) {
             .CursorSensitivity => |v| toBytes(@enumToInt(v))[0..],
             .CursorType => |v| toBytes(@enumToInt(v))[0..],
             .EnableAutoIpd => |v| blk: {
-                const value: usize = if (v) odbc.SQL_TRUE else odbc.SQL_FALSE;
+                const value: usize = if (v) 1 else 0;
                 break :blk toBytes(value)[0..];
             },
             .FetchBookmarkPointer => |v| toBytes(@ptrToInt(v))[0..],
@@ -1544,7 +1571,7 @@ pub const StatementAttributeValue = union(StatementAttribute) {
             .MaxLength => |v| toBytes(v)[0..],
             .MaxRows => |v| toBytes(v)[0..],
             .MetadataId => |v| blk: {
-                const value: usize = if (v) odbc.SQL_TRUE else odbc.SQL_FALSE;
+                const value: usize = if (v) 1 else 0;
                 break :blk toBytes(value)[0..];
             },
             .NoScan => |v| blk: {
