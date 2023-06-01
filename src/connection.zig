@@ -1,8 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-// const c = @import("c.zig");
-const c = @import("my_c.zig");
+const c = @import("c.zig");
 
 const Environment = @import("environment.zig").Environment;
 
