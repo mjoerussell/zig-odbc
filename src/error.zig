@@ -130,7 +130,7 @@ pub const SqlState = enum {
     fn toError(sql_state: SqlState) SqlStateError {
         inline for (@typeInfo(SqlStateError).ErrorSet.?) |error_field| {
             if (std.mem.eql(u8, error_field.name, @tagName(sql_state))) {
-                // return @Type(std.builtin.TypeInfo{ .Error = error_field });
+                // return @Type(std.builtin.Type{ .Error = error_field });
                 return @field(SqlStateError, error_field.name);
             }
         }
@@ -145,13 +145,13 @@ fn EnumError(comptime E: type) type {
     switch (@typeInfo(E)) {
         .Enum => {
             const tag_count = std.meta.fields(E).len;
-            var error_tags: [tag_count]std.builtin.TypeInfo.Error = undefined;
+            var error_tags: [tag_count]std.builtin.Type.Error = undefined;
 
-            for (std.meta.fields(E)) |enum_field, index| {
+            for (std.meta.fields(E), 0..) |enum_field, index| {
                 error_tags[index] = .{ .name = enum_field.name };
             }
 
-            const err_set: std.builtin.TypeInfo = .{ .ErrorSet = error_tags[0..] };
+            const err_set: std.builtin.Type = .{ .ErrorSet = error_tags[0..] };
             return @Type(err_set);
         },
         else => @compileError("EnumError only accepts enum types."),
@@ -304,12 +304,12 @@ pub fn getDiagnosticRecords(allocator: Allocator, handle_type: odbc.HandleType, 
         var error_message_length: c.SQLSMALLINT = 0;
         const result = c.SQLGetDiagRec(@enumToInt(handle_type), handle, record_index, record.sql_state[0..], @ptrCast([*c]c_int, &record.error_code), @intToPtr([*c]u8, @ptrToInt(error_message_buf.ptr)), @intCast(c_short, error_message_buf.len), &error_message_length);
         switch (@intToEnum(odbc.SqlReturn, result)) {
-            .Success, .SuccessWithInfo => {
+            .success, .success_with_info => {
                 error_message_buf = try allocator.realloc(error_message_buf, @intCast(usize, error_message_length));
                 record.error_message = error_message_buf;
                 records[@intCast(usize, record_index - 1)] = record;
             },
-            .InvalidHandle => return error.InvalidHandle,
+            .invalid_handle => return error.InvalidHandle,
             else => break,
         }
     }
@@ -328,7 +328,7 @@ pub fn getLastError(handle_type: odbc.HandleType, handle: *anyopaque) LastError 
 
     const result = c.SQLGetDiagRec(@enumToInt(handle_type), handle, 1, sql_state[0..], null, null, 0, null);
     switch (@intToEnum(odbc.SqlReturn, result)) {
-        .Success, .SuccessWithInfo => {
+        .success, .success_with_info => {
             const error_state = odbc_error_map.get(sql_state[0..]) orelse .GeneralError;
             return error_state.toError();
         },
@@ -349,8 +349,8 @@ pub fn getErrors(allocator: Allocator, handle_type: odbc.HandleType, handle: *an
         var sql_state: [5:0]u8 = undefined;
         const result = c.SQLGetDiagRec(@enumToInt(handle_type), handle, record_index, sql_state[0..], null, null, 0, null);
         switch (@intToEnum(odbc.SqlReturn, result)) {
-            .Success, .SuccessWithInfo => errors[@intCast(usize, record_index - 1)] = odbc_error_map.get(sql_state[0..]) orelse .GeneralError,
-            .InvalidHandle => return error.InvalidHandle,
+            .success, .success_with_info => errors[@intCast(usize, record_index - 1)] = odbc_error_map.get(sql_state[0..]) orelse .GeneralError,
+            .invalid_handle => return error.InvalidHandle,
             else => break,
         }
     }

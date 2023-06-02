@@ -1,36 +1,54 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const Builder = std.build.Builder;
+const build_pkg = @import("build_pkg.zig");
 
-const test_files = .{ "src/types.zig", "src/util.zig" };
+const odbc_library_name = build_pkg.odbc_library_name;
+const addOdbcLibraries = build_pkg.addOdbcLibraries;
 
-pub fn build(b: *Builder) void {
+const Build = std.Build;
+
+const TestItem = struct {
+    name: []const u8,
+    source_file: std.build.FileSource,
+};
+
+const test_files = [_]TestItem{
+    .{
+        .name = "types",
+        .source_file = .{ .path = "src/types.zig" },
+    },
+    .{
+        .name = "util",
+        .source_file = .{ .path = "src/util.zig" },
+    },
+};
+
+pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
 
     // Standard release options allow the person running `zig build` to select
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
-    const mode = b.standardReleaseOptions();
+    const optimize = b.standardOptimizeOption(.{});
 
-    const lib = b.addStaticLibrary("odbc", "src/lib.zig");
-    lib.setTarget(target);
-    lib.setBuildMode(mode);
-    lib.linkLibC();
+    const lib = b.addStaticLibrary(.{
+        .name = "odbc",
+        .root_source_file = .{ .path = "src/lib.zig" },
+        .optimize = optimize,
+        .target = target,
+    });
 
-    const odbc_library_name = if (builtin.os.tag == .windows) "odbc32" else "odbc";
-
-    if (builtin.os.tag == .macos) {
-        lib.addIncludeDir("/usr/local/include");
-        lib.addIncludeDir("/usr/local/lib");
-    }
-
-    lib.linkSystemLibrary(odbc_library_name);
-    lib.install();
+    addOdbcLibraries(lib);
+    b.installArtifact(lib);
 
     const test_cmd = b.step("test", "Run library tests");
-    inline for (test_files) |filename| {
-        var file_tests = b.addTest(filename);
-        file_tests.setBuildMode(mode);
-        file_tests.setTarget(target);
+    inline for (test_files) |item| {
+        var file_tests = b.addTest(.{
+            .name = item.name,
+            .root_source_file = item.source_file,
+            .optimize = optimize,
+            .target = target,
+        });
+
         file_tests.linkLibC();
 
         if (builtin.os.tag == .macos) {

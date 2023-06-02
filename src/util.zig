@@ -6,7 +6,7 @@ pub fn Bitmask(comptime BackingType: type, comptime fields: anytype) type {
     var base_struct_info = @typeInfo(BaseStruct);
 
     var incoming_fields: [fields.len]TypeInfo.StructField = undefined;
-    inline for (fields) |field, i| {
+    inline for (fields, 0..) |field, i| {
         incoming_fields[i] = .{ .name = field[0], .field_type = bool, .default_value = false, .is_comptime = false, .alignment = @alignOf(bool) };
     }
 
@@ -50,7 +50,7 @@ pub fn EnumErrorSet(comptime BaseEnum: type) type {
     switch (@typeInfo(BaseEnum)) {
         .Enum => |info| {
             var error_set: [info.fields.len]TypeInfo.Error = undefined;
-            inline for (info.fields) |field, index| {
+            inline for (info.fields, 0..) |field, index| {
                 error_set[index] = .{ .name = field.name };
             }
 
