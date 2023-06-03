@@ -15,8 +15,8 @@ pub fn addOdbcLibraries(exe: *CompileStep) void {
     exe.linkLibC();
 
     if (builtin.os.tag == .macos) {
-        exe.addIncludeDir("/usr/local/include");
-        exe.addIncludeDir("/usr/local/lib");
+        exe.addIncludePath("/usr/local/include");
+        exe.addIncludePath("/usr/local/lib");
     }
 
     exe.linkSystemLibrary(odbc_library_name);
