@@ -1,0 +1,4 @@
+.{
+	.name = "zig-odbc",
+	.version = 0.2.0,
+}
