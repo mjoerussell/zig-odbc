@@ -60,16 +60,16 @@ pub fn setupOdbcDependencies(step: *std.build.Step.Compile) void {
 pub fn testStep(b: *Build, optimize: std.builtin.OptimizeMode, target: std.zig.CrossTarget) [test_files.len]*std.build.Step.Compile {
     var tests: [test_files.len]*std.build.Step.Compile = undefined;
     inline for (test_files, 0..) |item, index| {
-        var file_tests = b.addTest(.{
+        var current_tests = b.addTest(.{
             .name = item.name,
             .root_source_file = item.source_file,
             .optimize = optimize,
             .target = target,
         });
 
-        setupOdbcDependencies(file_tests);
+        setupOdbcDependencies(current_tests);
 
-        tests[index] = file_tests;
+        tests[index] = current_tests;
     }
 
     return tests;
