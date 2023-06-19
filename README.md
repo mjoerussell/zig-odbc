@@ -7,36 +7,41 @@ to interface with a database, or it can be used to build more sophisticated conn
 
 ## How To Use
 
-After adding this package to your codebase, update your `build.zig` to include the highlighted lines:
+You can use the following configuration as a starting point when adding `zig-odbc` to your project. For another example, you can check [the build.zig of `zdb`](https://github.com/mjoerussell/zdb/blob/main/build.zig).
 
 ```zig
+// build.zig.zon
+.{
+    .name = "",
+    .version = "",
+    .dependencies = .{
+        .zig_odbc = .{
+            .url = "https://github.com/mjoerussell/zig-odbc/<sha>.tar.gz",
+            .hash = "<hash>",
+        }
+    }
+}
+
+// build.zig
+
 pub fn build(b: *Builder) void {
     const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOptions();
 
-    // Standard release options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
-    const mode = b.standardReleaseOptions();
-
-    const exe = b.addExecutable("odbc-test", "src/main.zig");
-    exe.setTarget(target);
-    exe.setBuildMode(mode);
+    // Create executable "exe"
 
     // ODBC configuration
-    exe.addPackagePath("odbc", "odbc/src/lib.zig"); // <-- Add the main lib.zig as a package
-    exe.linkLibC(); // <-- Link libc
-    exe.linkSystemLibrary("odbc32"); // <-- Link the ODBC system library
+    var zig_odbc_dep = b.dependency("zig_odbc", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const odbc_module = zig_odbc_dep.module("zig-odbc");
+    const odbc_lib = zig_odbc_dep.artifact("odbc");
+
+    exe.addModule("odbc", odbc_module);
+    exe.linkLibrary(odbc_lib);
     // End ODBC configuration
-
-    exe.install();
-
-    const run_cmd = exe.run();
-    run_cmd.step.dependOn(b.getInstallStep());
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
-
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
 }
 ```
 
