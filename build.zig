@@ -41,6 +41,7 @@ pub fn build(b: *Build) void {
 pub fn setupOdbcDependencies(step: *std.build.CompileStep) void {
     step.linkLibC();
 
+    const odbc_library_name = if (builtin.os.tag == .windows) "odbc32" else "odbc";
     if (builtin.os.tag == .macos) {
         step.addIncludeDir("/usr/local/include");
         step.addIncludeDir("/usr/local/lib");
