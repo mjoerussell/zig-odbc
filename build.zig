@@ -20,13 +20,20 @@ const test_files = [_]TestItem{
     },
 };
 
-pub const module_name = "zig-odbc";
-
 pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    _ = b.addModule(module_name, .{
+    var lib = b.addStaticLibrary(.{
+        .name = "odbc",
+        .target = target,
+        .optimize = optimize,
+    });
+
+    setupOdbcDependencies(lib);
+    b.installArtifact(lib);
+
+    _ = b.addModule("zig-odbc", .{
         .source_file = .{ .path = "src/lib.zig" },
     });
 
@@ -38,7 +45,7 @@ pub fn build(b: *Build) void {
     }
 }
 
-pub fn setupOdbcDependencies(step: *std.build.CompileStep) void {
+pub fn setupOdbcDependencies(step: *std.build.Step.Compile) void {
     step.linkLibC();
 
     const odbc_library_name = if (builtin.os.tag == .windows) "odbc32" else "odbc";
@@ -50,8 +57,8 @@ pub fn setupOdbcDependencies(step: *std.build.CompileStep) void {
     step.linkSystemLibrary(odbc_library_name);
 }
 
-pub fn testStep(b: *Build, optimize: std.builtin.OptimizeMode, target: std.zig.CrossTarget) [test_files.len]*std.build.CompileStep {
-    var tests: [test_files.len]*std.build.CompileStep = undefined;
+pub fn testStep(b: *Build, optimize: std.builtin.OptimizeMode, target: std.zig.CrossTarget) [test_files.len]*std.build.Step.Compile {
+    var tests: [test_files.len]*std.build.Step.Compile = undefined;
     inline for (test_files, 0..) |item, index| {
         var file_tests = b.addTest(.{
             .name = item.name,
