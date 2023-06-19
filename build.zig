@@ -1,10 +1,7 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
+
 const builtin = @import("builtin");
-const build_pkg = @import("build_pkg.zig");
-
-const odbc_library_name = build_pkg.odbc_library_name;
-const addOdbcLibraries = build_pkg.addOdbcLibraries;
-
 const Build = std.Build;
 
 const TestItem = struct {
@@ -23,25 +20,38 @@ const test_files = [_]TestItem{
     },
 };
 
+pub const module_name = "zig-odbc";
+
 pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
-
-    // Standard release options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     const optimize = b.standardOptimizeOption(.{});
 
-    const lib = b.addStaticLibrary(.{
-        .name = "odbc",
-        .root_source_file = .{ .path = "src/lib.zig" },
-        .optimize = optimize,
-        .target = target,
+    _ = b.addModule(module_name, .{
+        .source_file = .{ .path = "src/lib.zig" },
     });
 
-    addOdbcLibraries(lib);
-    b.installArtifact(lib);
-
     const test_cmd = b.step("test", "Run library tests");
-    inline for (test_files) |item| {
+
+    const tests = testStep(b, optimize, target);
+    for (tests) |t| {
+        test_cmd.dependOn(&t.step);
+    }
+}
+
+pub fn setupOdbcDependencies(step: *std.build.CompileStep) void {
+    step.linkLibC();
+
+    if (builtin.os.tag == .macos) {
+        step.addIncludeDir("/usr/local/include");
+        step.addIncludeDir("/usr/local/lib");
+    }
+
+    step.linkSystemLibrary(odbc_library_name);
+}
+
+pub fn testStep(b: *Build, optimize: std.builtin.OptimizeMode, target: std.zig.CrossTarget) [test_files.len]*std.build.CompileStep {
+    var tests: [test_files.len]*std.build.CompileStep = undefined;
+    inline for (test_files, 0..) |item, index| {
         var file_tests = b.addTest(.{
             .name = item.name,
             .root_source_file = item.source_file,
@@ -49,14 +59,10 @@ pub fn build(b: *Build) void {
             .target = target,
         });
 
-        file_tests.linkLibC();
+        setupOdbcDependencies(test_files);
 
-        if (builtin.os.tag == .macos) {
-            file_tests.addIncludeDir("/usr/local/include");
-            file_tests.addIncludeDir("/usr/local/lib");
-        }
-
-        file_tests.linkSystemLibrary(odbc_library_name);
-        test_cmd.dependOn(&file_tests.step);
+        tests[index] = file_tests;
     }
+
+    return tests;
 }
