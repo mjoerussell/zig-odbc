@@ -67,7 +67,7 @@ pub fn testStep(b: *Build, optimize: std.builtin.OptimizeMode, target: std.zig.C
             .target = target,
         });
 
-        setupOdbcDependencies(test_files);
+        setupOdbcDependencies(file_tests);
 
         tests[index] = file_tests;
     }
