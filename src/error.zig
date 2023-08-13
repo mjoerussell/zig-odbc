@@ -292,7 +292,7 @@ pub const DiagnosticRecord = struct {
 
 pub fn getDiagnosticRecords(allocator: Allocator, handle_type: odbc.HandleType, handle: *anyopaque) ![]DiagnosticRecord {
     var num_records: u64 = 0;
-    _ = c.SQLGetDiagField(@enumToInt(handle_type), handle, 0, @enumToInt(odbc.DiagnosticIdentifier.Number), &num_records, 0, null);
+    _ = c.SQLGetDiagField(@intFromEnum(handle_type), handle, 0, @intFromEnum(odbc.DiagnosticIdentifier.Number), &num_records, 0, null);
 
     var records = try allocator.alloc(DiagnosticRecord, num_records);
     errdefer allocator.free(records);
@@ -302,12 +302,12 @@ pub fn getDiagnosticRecords(allocator: Allocator, handle_type: odbc.HandleType, 
         var record: DiagnosticRecord = undefined;
         var error_message_buf = try allocator.alloc(u8, 200);
         var error_message_length: c.SQLSMALLINT = 0;
-        const result = c.SQLGetDiagRec(@enumToInt(handle_type), handle, record_index, record.sql_state[0..], @ptrCast([*c]c_int, &record.error_code), @intToPtr([*c]u8, @ptrToInt(error_message_buf.ptr)), @intCast(c_short, error_message_buf.len), &error_message_length);
-        switch (@intToEnum(odbc.SqlReturn, result)) {
+        const result = c.SQLGetDiagRec(@intFromEnum(handle_type), handle, record_index, record.sql_state[0..], @as([*c]c_int, @ptrCast(&record.error_code)), @as([*c]u8, @ptrFromInt(@intFromPtr(error_message_buf.ptr))), @as(c_short, @intCast(error_message_buf.len)), &error_message_length);
+        switch (@as(odbc.SqlReturn, @enumFromInt(result))) {
             .success, .success_with_info => {
-                error_message_buf = try allocator.realloc(error_message_buf, @intCast(usize, error_message_length));
+                error_message_buf = try allocator.realloc(error_message_buf, @as(usize, @intCast(error_message_length)));
                 record.error_message = error_message_buf;
-                records[@intCast(usize, record_index - 1)] = record;
+                records[@as(usize, @intCast(record_index - 1))] = record;
             },
             .invalid_handle => return error.InvalidHandle,
             else => break,
@@ -320,14 +320,14 @@ pub fn getDiagnosticRecords(allocator: Allocator, handle_type: odbc.HandleType, 
 pub const LastError = error{NoError} || SqlStateError;
 pub fn getLastError(handle_type: odbc.HandleType, handle: *anyopaque) LastError {
     var num_records: u64 = 0;
-    _ = c.SQLGetDiagField(@enumToInt(handle_type), handle, 0, @enumToInt(odbc.DiagnosticIdentifier.Number), &num_records, 0, null);
+    _ = c.SQLGetDiagField(@intFromEnum(handle_type), handle, 0, @intFromEnum(odbc.DiagnosticIdentifier.Number), &num_records, 0, null);
 
     if (num_records == 0) return error.NoError;
 
     var sql_state: [5:0]u8 = undefined;
 
-    const result = c.SQLGetDiagRec(@enumToInt(handle_type), handle, 1, sql_state[0..], null, null, 0, null);
-    switch (@intToEnum(odbc.SqlReturn, result)) {
+    const result = c.SQLGetDiagRec(@intFromEnum(handle_type), handle, 1, sql_state[0..], null, null, 0, null);
+    switch (@as(odbc.SqlReturn, @enumFromInt(result))) {
         .success, .success_with_info => {
             const error_state = odbc_error_map.get(sql_state[0..]) orelse .GeneralError;
             return error_state.toError();
@@ -339,7 +339,7 @@ pub fn getLastError(handle_type: odbc.HandleType, handle: *anyopaque) LastError 
 
 pub fn getErrors(allocator: Allocator, handle_type: odbc.HandleType, handle: *anyopaque) ![]SqlState {
     var num_records: u64 = 0;
-    _ = c.SQLGetDiagField(@enumToInt(handle_type), handle, 0, @enumToInt(odbc.DiagnosticIdentifier.Number), &num_records, 0, null);
+    _ = c.SQLGetDiagField(@intFromEnum(handle_type), handle, 0, @intFromEnum(odbc.DiagnosticIdentifier.Number), &num_records, 0, null);
 
     var errors = try allocator.alloc(SqlState, num_records);
     errdefer allocator.free(errors);
@@ -347,9 +347,9 @@ pub fn getErrors(allocator: Allocator, handle_type: odbc.HandleType, handle: *an
     var record_index: i16 = 1;
     while (record_index <= num_records) : (record_index += 1) {
         var sql_state: [5:0]u8 = undefined;
-        const result = c.SQLGetDiagRec(@enumToInt(handle_type), handle, record_index, sql_state[0..], null, null, 0, null);
-        switch (@intToEnum(odbc.SqlReturn, result)) {
-            .success, .success_with_info => errors[@intCast(usize, record_index - 1)] = odbc_error_map.get(sql_state[0..]) orelse .GeneralError,
+        const result = c.SQLGetDiagRec(@intFromEnum(handle_type), handle, record_index, sql_state[0..], null, null, 0, null);
+        switch (@as(odbc.SqlReturn, @enumFromInt(result))) {
+            .success, .success_with_info => errors[@as(usize, @intCast(record_index - 1))] = odbc_error_map.get(sql_state[0..]) orelse .GeneralError,
             .invalid_handle => return error.InvalidHandle,
             else => break,
         }

@@ -66,7 +66,7 @@ pub inline fn unionInitEnum(comptime U: type, comptime E: std.meta.Tag(U), value
 }
 
 pub inline fn sliceToValue(comptime T: type, slice: []u8) T {
-    const ptr = @ptrCast(*const [@sizeOf(T)]u8, slice[0..@sizeOf(T)]);
+    const ptr = @as(*const [@sizeOf(T)]u8, @ptrCast(slice[0..@sizeOf(T)]));
     return std.mem.bytesToValue(T, ptr);
 }
 

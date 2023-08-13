@@ -104,9 +104,9 @@ pub const EnvironmentAttribute = enum(i32) {
     /// (i.e. `ConnectionPool.Off == ConnectionPoolMath.Strict`).
     pub fn getAttributeValue(self: EnvironmentAttribute, value: i32) EnvironmentAttributeValue {
         return switch (self) {
-            .OdbcVersion => .{ .OdbcVersion = @intToEnum(EnvironmentAttributeValue.OdbcVersion, value) },
-            .ConnectionPool => .{ .ConnectionPool = @intToEnum(EnvironmentAttributeValue.ConnectionPool, @intCast(u32, value)) },
-            .ConnectionPoolMatch => .{ .ConnectionPoolMatch = @intToEnum(EnvironmentAttributeValue.ConnectionPoolMatch, @intCast(u32, value)) },
+            .OdbcVersion => .{ .OdbcVersion = @as(EnvironmentAttributeValue.OdbcVersion, @enumFromInt(value)) },
+            .ConnectionPool => .{ .ConnectionPool = @as(EnvironmentAttributeValue.ConnectionPool, @enumFromInt(@as(u32, @intCast(value)))) },
+            .ConnectionPoolMatch => .{ .ConnectionPoolMatch = @as(EnvironmentAttributeValue.ConnectionPoolMatch, @enumFromInt(@as(u32, @intCast(value)))) },
             .OutputNts => .{ .OutputNts = value != 0 },
         };
     }
@@ -139,13 +139,13 @@ pub const EnvironmentAttributeValue = union(EnvironmentAttribute) {
     /// Get the underlying integer value that the current attribute value represents.
     pub fn getValue(self: EnvironmentAttributeValue) u32 {
         const val = switch (self) {
-            .ConnectionPool => |v| @enumToInt(v),
-            .ConnectionPoolMatch => |v| @enumToInt(v),
-            .OdbcVersion => |v| @intCast(u32, @enumToInt(v)),
+            .ConnectionPool => |v| @intFromEnum(v),
+            .ConnectionPoolMatch => |v| @intFromEnum(v),
+            .OdbcVersion => |v| @as(u32, @intCast(@intFromEnum(v))),
             .OutputNts => |nts| if (nts) @as(u32, 1) else @as(u32, 0),
         };
 
-        return @intCast(u32, val);
+        return @as(u32, @intCast(val));
     }
 };
 
@@ -171,7 +171,7 @@ pub const ConnectionAttribute = enum(i32) {
 
     pub fn getAttributeValue(comptime self: ConnectionAttribute, bytes: []u8) ConnectionAttributeValue {
         return unionInitEnum(ConnectionAttributeValue, self, switch (self) {
-            .AccessMode => @intToEnum(ConnectionAttributeValue.AccessMode, sliceToValue(u32, bytes)),
+            .AccessMode => @as(ConnectionAttributeValue.AccessMode, @enumFromInt(sliceToValue(u32, bytes))),
             .EnableAsync => sliceToValue(usize, bytes) == 1,
             .AutoIpd => sliceToValue(u32, bytes) == 1,
             .Autocommit => sliceToValue(u32, bytes) == 1,
@@ -181,7 +181,7 @@ pub const ConnectionAttribute = enum(i32) {
             .EnlistInDtc => sliceToValue(*anyopaque, bytes),
             .LoginTimeout => sliceToValue(u32, bytes),
             .MetadataId => sliceToValue(u32, bytes) == 1,
-            .OdbcCursors => @intToEnum(ConnectionAttributeValue.OdbcCursors, sliceToValue(usize, bytes)),
+            .OdbcCursors => @as(ConnectionAttributeValue.OdbcCursors, @enumFromInt(sliceToValue(usize, bytes))),
             .PacketSize => sliceToValue(u32, bytes),
             .QuietMode => sliceToValue(odbc.HWND, bytes),
             .Trace => sliceToValue(u32, bytes) == 1,
@@ -226,8 +226,8 @@ pub const ConnectionAttributeValue = union(ConnectionAttribute) {
 
     pub fn getValue(self: ConnectionAttributeValue, allocator: std.mem.Allocator) ![]u8 {
         const value_buffer: []u8 = switch (self) {
-            .AccessMode => |v| toBytes(@enumToInt(v))[0..],
-            .AsyncEventHandle => |v| toBytes(@ptrToInt(v))[0..],
+            .AccessMode => |v| toBytes(@intFromEnum(v))[0..],
+            .AsyncEventHandle => |v| toBytes(@intFromPtr(v))[0..],
             .EnableAsync => |v| if (v) toBytes(@as(usize, 1))[0..] else toBytes(@as(usize, 0))[0..],
             .AutoIpd => |v| if (v) toBytes(@as(u32, 1))[0..] else toBytes(@as(u32, 0))[0..],
             .Autocommit => |v| blk: {
@@ -237,12 +237,12 @@ pub const ConnectionAttributeValue = union(ConnectionAttribute) {
             .ConnectionDead => |v| if (v) toBytes(@as(u32, 1))[0..] else toBytes(@as(u32, 0))[0..],
             .ConnectionTimeout => |v| toBytes(v)[0..],
             .CurrentCatalog => |v| v,
-            .EnlistInDtc => |v| toBytes(@ptrToInt(v))[0..],
+            .EnlistInDtc => |v| toBytes(@intFromPtr(v))[0..],
             .LoginTimeout => |v| toBytes(v)[0..],
             .MetadataId => |v| if (v) toBytes(@as(u32, 1))[0..] else toBytes(@as(u32, 0))[0..],
-            .OdbcCursors => |v| toBytes(@enumToInt(v))[0..],
+            .OdbcCursors => |v| toBytes(@intFromEnum(v))[0..],
             .PacketSize => |v| toBytes(v)[0..],
-            .QuietMode => |v| toBytes(@ptrToInt(v))[0..],
+            .QuietMode => |v| toBytes(@intFromPtr(v))[0..],
             .Trace => |v| if (v) toBytes(@as(u32, 1))[0..] else toBytes(@as(u32, 0))[0..],
             .Tracefile => |v| v,
             .TranslateLib => |v| v,
@@ -548,20 +548,20 @@ pub const InformationType = enum(c_ushort) {
             // Supported conversions bitmask attributes
             .ConvertBigint, .ConvertBinary, .ConvertBit, .ConvertChar, .ConvertDate, .ConvertDecimal, .ConvertDouble, .ConvertFloat, .ConvertInteger, .ConvertIntervalDayTime, .ConvertIntervalYearMonth, .ConvertLongVarBinary, .ConvertLongVarChar, .ConvertNumeric, .ConvertReal, .ConvertSmallInt, .ConvertTime, .ConvertTimestamp, .ConvertTinyInt, .ConvertVarBinary, .ConvertVarChar => InformationTypeValue.SupportedConversion.applyBitmask(sliceToValue(u32, bytes)),
             // Assorted enum attributes
-            .AsyncMode => @intToEnum(InformationTypeValue.AsyncMode, sliceToValue(u32, bytes)),
-            .FileUsage => @intToEnum(InformationTypeValue.FileUsage, sliceToValue(c_ushort, bytes)),
-            .OdbcInterfaceConformance => @intToEnum(InformationTypeValue.InterfaceConformance, sliceToValue(c_ushort, bytes)),
-            .ConcatNullBehavior => @intToEnum(InformationTypeValue.ConcatNullBehavior, sliceToValue(c_ushort, bytes)),
-            .CursorCommitBehavior => @intToEnum(InformationTypeValue.CursorCommitBehavior, sliceToValue(c_ushort, bytes)),
-            .CursorRollbackBehavior => @intToEnum(InformationTypeValue.CursorRollbackBehavior, sliceToValue(c_ushort, bytes)),
-            .CursorSensitivity => @intToEnum(InformationTypeValue.CursorSensitivity, sliceToValue(c_ushort, bytes)),
-            .NullCollation => @intToEnum(InformationTypeValue.NullCollation, sliceToValue(c_ushort, bytes)),
-            .CatalogLocation => @intToEnum(InformationTypeValue.CatalogLocation, sliceToValue(c_ushort, bytes)),
-            .CorrelationName => @intToEnum(InformationTypeValue.CorrelationName, sliceToValue(c_ushort, bytes)),
-            .GroupBy => @intToEnum(InformationTypeValue.GroupBy, sliceToValue(c_ushort, bytes)),
-            .IdentifierCase => @intToEnum(InformationTypeValue.IdentifierCase, sliceToValue(c_ushort, bytes)),
-            .QuotedIdentifierCase => @intToEnum(InformationTypeValue.QuotedIdentifierCase, sliceToValue(c_ushort, bytes)),
-            .SQLConformance => @intToEnum(InformationTypeValue.SQLConformance, sliceToValue(c_ushort, bytes)),
+            .AsyncMode => @as(InformationTypeValue.AsyncMode, @enumFromInt(sliceToValue(u32, bytes))),
+            .FileUsage => @as(InformationTypeValue.FileUsage, @enumFromInt(sliceToValue(c_ushort, bytes))),
+            .OdbcInterfaceConformance => @as(InformationTypeValue.InterfaceConformance, @enumFromInt(sliceToValue(c_ushort, bytes))),
+            .ConcatNullBehavior => @as(InformationTypeValue.ConcatNullBehavior, @enumFromInt(sliceToValue(c_ushort, bytes))),
+            .CursorCommitBehavior => @as(InformationTypeValue.CursorCommitBehavior, @enumFromInt(sliceToValue(c_ushort, bytes))),
+            .CursorRollbackBehavior => @as(InformationTypeValue.CursorRollbackBehavior, @enumFromInt(sliceToValue(c_ushort, bytes))),
+            .CursorSensitivity => @as(InformationTypeValue.CursorSensitivity, @enumFromInt(sliceToValue(c_ushort, bytes))),
+            .NullCollation => @as(InformationTypeValue.NullCollation, @enumFromInt(sliceToValue(c_ushort, bytes))),
+            .CatalogLocation => @as(InformationTypeValue.CatalogLocation, @enumFromInt(sliceToValue(c_ushort, bytes))),
+            .CorrelationName => @as(InformationTypeValue.CorrelationName, @enumFromInt(sliceToValue(c_ushort, bytes))),
+            .GroupBy => @as(InformationTypeValue.GroupBy, @enumFromInt(sliceToValue(c_ushort, bytes))),
+            .IdentifierCase => @as(InformationTypeValue.IdentifierCase, @enumFromInt(sliceToValue(c_ushort, bytes))),
+            .QuotedIdentifierCase => @as(InformationTypeValue.QuotedIdentifierCase, @enumFromInt(sliceToValue(c_ushort, bytes))),
+            .SQLConformance => @as(InformationTypeValue.SQLConformance, @enumFromInt(sliceToValue(c_ushort, bytes))),
             // String attributes
             .DataSourceName, .DriverName, .DriverOdbcVersion, .DriverVersion, .OdbcVersion, .SearchPatternEscape, .ServerName, .DatabaseName, .DBMSName, .DBMSVersion, .CatalogTerm, .CollationSeq, .ProcedureTerm, .SchemaTerm, .TableTerm, .Username, .CatalogNameSeparator, .IdentifierQuoteChar, .Keywords, .DMVersion, .XOpenCliYear, .SpecialCharacters => bytes[0..string_len :0],
             // Boolean attributes
@@ -1205,7 +1205,7 @@ pub const CType = enum(odbc.SQLSMALLINT) {
             const le_scaled_value = std.mem.bytesToValue(u128, numeric_value[0..]);
             const native_scaled_value = std.mem.littleToNative(u128, le_scaled_value);
 
-            var float_value = @intToFloat(FloatType, native_scaled_value);
+            var float_value = @as(FloatType, @floatFromInt(native_scaled_value));
             var scale_index: u8 = 0;
             while (scale_index < numeric.scale) : (scale_index += 1) {
                 float_value /= 10;
@@ -1428,37 +1428,37 @@ pub const StatementAttribute = enum(i32) {
     pub fn getValue(self: StatementAttribute, bytes: []u8) StatementAttributeValue {
         const value = bytesToValue(usize, bytes[0..@sizeOf(usize)]);
         return switch (self) {
-            .AppParamDescription => .{ .AppParamDescription = @intToPtr(*anyopaque, value) },
-            .AppRowDescription => .{ .AppRowDescription = @intToPtr(*anyopaque, value) },
-            .Concurrency => .{ .Concurrency = @intToEnum(StatementAttributeValue.Concurrency, value) },
+            .AppParamDescription => .{ .AppParamDescription = @as(*anyopaque, @ptrFromInt(value)) },
+            .AppRowDescription => .{ .AppRowDescription = @as(*anyopaque, @ptrFromInt(value)) },
+            .Concurrency => .{ .Concurrency = @as(StatementAttributeValue.Concurrency, @enumFromInt(value)) },
             .CursorScrollable => .{ .CursorScrollable = value == odbc.SQL_SCROLLABLE },
-            .CursorSensitivity => .{ .CursorSensitivity = @intToEnum(StatementAttributeValue.CursorSensitivity, value) },
-            .CursorType => .{ .CursorType = @intToEnum(StatementAttributeValue.CursorType, value) },
+            .CursorSensitivity => .{ .CursorSensitivity = @as(StatementAttributeValue.CursorSensitivity, @enumFromInt(value)) },
+            .CursorType => .{ .CursorType = @as(StatementAttributeValue.CursorType, @enumFromInt(value)) },
             .EnableAutoIpd => .{ .EnableAutoIpd = value == 1 },
-            .FetchBookmarkPointer => .{ .FetchBookmarkPointer = @intToPtr(*isize, value) },
-            .ImpParamDescription => .{ .ImpParamDescription = @intToPtr(*anyopaque, value) },
-            .ImpRowDescription => .{ .ImpRowDescription = @intToPtr(*anyopaque, value) },
+            .FetchBookmarkPointer => .{ .FetchBookmarkPointer = @as(*isize, @ptrFromInt(value)) },
+            .ImpParamDescription => .{ .ImpParamDescription = @as(*anyopaque, @ptrFromInt(value)) },
+            .ImpRowDescription => .{ .ImpRowDescription = @as(*anyopaque, @ptrFromInt(value)) },
             .KeysetSize => .{ .KeysetSize = value },
             .MaxLength => .{ .MaxLength = value },
             .MaxRows => .{ .MaxRows = value },
             .MetadataId => .{ .MetadataId = value == 1 },
             .NoScan => .{ .NoScan = value == odbc.SQL_NOSCAN_ON },
-            .ParamBindOffsetPointer => .{ .ParamBindOffsetPointer = @intToPtr(?*anyopaque, value) },
+            .ParamBindOffsetPointer => .{ .ParamBindOffsetPointer = @as(?*anyopaque, @ptrFromInt(value)) },
             .ParamBindType => .{ .ParamBindType = value },
             .ParamOperationPointer => .{ .ParamOperationPointer = @alignCast(@alignOf(usize), std.mem.bytesAsSlice(StatementAttributeValue.ParamOperation, bytes)) },
             .ParamStatusPointer => .{ .ParamStatusPointer = @alignCast(@alignOf(usize), std.mem.bytesAsSlice(StatementAttributeValue.ParamStatus, bytes)) },
-            .ParamsProcessedPointer => .{ .ParamsProcessedPointer = @intToPtr(*usize, value) },
+            .ParamsProcessedPointer => .{ .ParamsProcessedPointer = @as(*usize, @ptrFromInt(value)) },
             .ParamsetSize => .{ .ParamsetSize = value },
             .QueryTimeout => .{ .QueryTimeout = value },
             .RetrieveData => .{ .RetrieveData = value == odbc.SQL_RD_ON },
             .RowArraySize => .{ .RowArraySize = value },
-            .RowBindOffsetPointer => .{ .RowBindOffsetPointer = @intToPtr(*usize, value) },
+            .RowBindOffsetPointer => .{ .RowBindOffsetPointer = @as(*usize, @ptrFromInt(value)) },
             .RowBindType => .{ .RowBindType = value },
             .RowNumber => .{ .RowNumber = value },
             .RowOperationPointer => .{ .RowOperationPointer = @alignCast(@alignOf(usize), std.mem.bytesAsSlice(StatementAttributeValue.RowOperation, bytes)) },
             .RowStatusPointer => .{ .RowStatusPointer = @alignCast(@alignOf(usize), std.mem.bytesAsSlice(StatementAttributeValue.RowStatus, bytes)) },
-            .RowsFetchedPointer => .{ .RowsFetchedPointer = @intToPtr(*usize, value) },
-            .SimulateCursor => .{ .SimulateCursor = @intToEnum(StatementAttributeValue.SimulateCursor, value) },
+            .RowsFetchedPointer => .{ .RowsFetchedPointer = @as(*usize, @ptrFromInt(value)) },
+            .SimulateCursor => .{ .SimulateCursor = @as(StatementAttributeValue.SimulateCursor, @enumFromInt(value)) },
             .UseBookmarks => .{ .UseBookmarks = value == odbc.SQL_UB_VARIABLE },
         };
     }
@@ -1551,22 +1551,22 @@ pub const StatementAttributeValue = union(StatementAttribute) {
 
     pub fn valueAsBytes(attr_value: StatementAttributeValue, allocator: Allocator) ![]const u8 {
         const bytes: []const u8 = switch (attr_value) {
-            .AppParamDescription => |v| toBytes(@ptrToInt(v))[0..],
-            .AppRowDescription => |v| toBytes(@ptrToInt(v))[0..],
-            .Concurrency => |v| toBytes(@enumToInt(v))[0..],
+            .AppParamDescription => |v| toBytes(@intFromPtr(v))[0..],
+            .AppRowDescription => |v| toBytes(@intFromPtr(v))[0..],
+            .Concurrency => |v| toBytes(@intFromEnum(v))[0..],
             .CursorScrollable => |v| blk: {
                 const value: usize = if (v) odbc.SQL_SCROLLABLE else odbc.SQL_NONSCROLLABLE;
                 break :blk toBytes(value)[0..];
             },
-            .CursorSensitivity => |v| toBytes(@enumToInt(v))[0..],
-            .CursorType => |v| toBytes(@enumToInt(v))[0..],
+            .CursorSensitivity => |v| toBytes(@intFromEnum(v))[0..],
+            .CursorType => |v| toBytes(@intFromEnum(v))[0..],
             .EnableAutoIpd => |v| blk: {
                 const value: usize = if (v) 1 else 0;
                 break :blk toBytes(value)[0..];
             },
-            .FetchBookmarkPointer => |v| toBytes(@ptrToInt(v))[0..],
-            .ImpParamDescription => |v| toBytes(@ptrToInt(v))[0..],
-            .ImpRowDescription => |v| toBytes(@ptrToInt(v))[0..],
+            .FetchBookmarkPointer => |v| toBytes(@intFromPtr(v))[0..],
+            .ImpParamDescription => |v| toBytes(@intFromPtr(v))[0..],
+            .ImpRowDescription => |v| toBytes(@intFromPtr(v))[0..],
             .KeysetSize => |v| toBytes(v)[0..],
             .MaxLength => |v| toBytes(v)[0..],
             .MaxRows => |v| toBytes(v)[0..],
@@ -1578,10 +1578,10 @@ pub const StatementAttributeValue = union(StatementAttribute) {
                 const value: usize = if (v) odbc.SQL_NOSCAN_ON else odbc.SQL_NOSCAN_OFF;
                 break :blk toBytes(value)[0..];
             },
-            .ParamBindOffsetPointer => |v| toBytes(@ptrToInt(v))[0..],
+            .ParamBindOffsetPointer => |v| toBytes(@intFromPtr(v))[0..],
             .ParamBindType => |v| toBytes(v)[0..],
 
-            .ParamsProcessedPointer => |v| toBytes(@ptrToInt(v))[0..],
+            .ParamsProcessedPointer => |v| toBytes(@intFromPtr(v))[0..],
             .ParamsetSize => |v| toBytes(v)[0..],
             .QueryTimeout => |v| toBytes(v)[0..],
             .RetrieveData => |v| blk: {
@@ -1589,11 +1589,11 @@ pub const StatementAttributeValue = union(StatementAttribute) {
                 break :blk toBytes(value)[0..];
             },
             .RowArraySize => |v| toBytes(v)[0..],
-            .RowBindOffsetPointer => |v| toBytes(@ptrToInt(v))[0..],
+            .RowBindOffsetPointer => |v| toBytes(@intFromPtr(v))[0..],
             .RowBindType => |v| toBytes(v)[0..],
             .RowNumber => |v| toBytes(v)[0..],
-            .RowsFetchedPointer => |v| toBytes(@ptrToInt(v))[0..],
-            .SimulateCursor => |v| toBytes(@enumToInt(v))[0..],
+            .RowsFetchedPointer => |v| toBytes(@intFromPtr(v))[0..],
+            .SimulateCursor => |v| toBytes(@intFromEnum(v))[0..],
             .UseBookmarks => |v| blk: {
                 const value: usize = if (v) odbc.SQL_UB_VARIABLE else odbc.SQL_UB_OFF;
                 break :blk toBytes(value)[0..];

@@ -18,8 +18,8 @@ pub const Environment = struct {
 
     pub fn init() ReturnError!Environment {
         var result: Environment = undefined;
-        const alloc_result = c.SQLAllocHandle(@enumToInt(HandleType.environment), null, @ptrCast([*c]?*anyopaque, &result.handle));
-        return switch (@intToEnum(SqlReturn, alloc_result)) {
+        const alloc_result = c.SQLAllocHandle(@intFromEnum(HandleType.environment), null, @as([*c]?*anyopaque, @ptrCast(&result.handle)));
+        return switch (@as(SqlReturn, @enumFromInt(alloc_result))) {
             .invalid_handle => @panic("Environment init passed invalid handle type"),
             .err => error.Error,
             else => result,
@@ -30,8 +30,8 @@ pub const Environment = struct {
     /// again. If this fails, then the environment handle will still be active and must be deinitialized
     /// again after fixing the errors.
     pub fn deinit(self: Environment) !void {
-        const result = c.SQLFreeHandle(@enumToInt(HandleType.environment), self.handle);
-        return switch (@intToEnum(SqlReturn, result)) {
+        const result = c.SQLFreeHandle(@intFromEnum(HandleType.environment), self.handle);
+        return switch (@as(SqlReturn, @enumFromInt(result))) {
             .success, .success_with_info => {},
             .invalid_handle => @panic("Environment deinit passed invalid handle type"), // Handle type is hardcoded above, this should never be reached
             .err => self.getLastError(),
@@ -46,16 +46,16 @@ pub const Environment = struct {
         var description_len: i16 = 0;
 
         run_loop: while (true) {
-            const result = c.SQLDataSources(self.handle, @enumToInt(direction), server_name_buf.ptr, @intCast(i16, server_name_buf.len), &server_name_len, description_buf.ptr, @intCast(i16, description_buf.len), &description_len);
-            switch (@intToEnum(SqlReturn, result)) {
+            const result = c.SQLDataSources(self.handle, @intFromEnum(direction), server_name_buf.ptr, @as(i16, @intCast(server_name_buf.len)), &server_name_len, description_buf.ptr, @as(i16, @intCast(description_buf.len)), &description_len);
+            switch (@as(SqlReturn, @enumFromInt(result))) {
                 .success => return odbc.DataSource{
-                    .server_name = server_name_buf[0..@intCast(usize, server_name_len)],
-                    .description = description_buf[0..@intCast(usize, description_len)],
+                    .server_name = server_name_buf[0..@as(usize, @intCast(server_name_len))],
+                    .description = description_buf[0..@as(usize, @intCast(description_len))],
                 },
                 .success_with_info => switch (self.getLastError()) {
                     error.StringRightTrunc => {
-                        server_name_buf = try allocator.resize(server_name_buf, @intCast(usize, server_name_len + 1));
-                        description_buf = try allocator.resize(description_buf, @intCast(usize, description_len + 1));
+                        server_name_buf = try allocator.resize(server_name_buf, @as(usize, @intCast(server_name_len + 1)));
+                        description_buf = try allocator.resize(description_buf, @as(usize, @intCast(description_len + 1)));
                         continue :run_loop;
                     },
                     else => |err| return err,
@@ -73,14 +73,14 @@ pub const Environment = struct {
         var attributes_len: i16 = 0;
 
         run_loop: while (true) {
-            const result = c.SQLDrivers(self.handle, @enumToInt(direction), description_buf.ptr, @intCast(i16, description_buf.len), &description_len, attribute_buf.ptr, @intCast(i16, attribute_buf.len), &attributes_len);
-            switch (@intToEnum(SqlReturn, result)) {
-                .success => return odbc.Driver{ .description = description_buf[0..@intCast(usize, description_len)], .attributes = attribute_buf[0..@intCast(usize, attributes_len)] },
+            const result = c.SQLDrivers(self.handle, @intFromEnum(direction), description_buf.ptr, @as(i16, @intCast(description_buf.len)), &description_len, attribute_buf.ptr, @as(i16, @intCast(attribute_buf.len)), &attributes_len);
+            switch (@as(SqlReturn, @enumFromInt(result))) {
+                .success => return odbc.Driver{ .description = description_buf[0..@as(usize, @intCast(description_len))], .attributes = attribute_buf[0..@as(usize, @intCast(attributes_len))] },
                 .no_data => return null,
                 .success_with_info => switch (self.getLastError()) {
                     error.StringRightTrunc => {
-                        description_buf = try allocator.resize(description_buf, @intCast(usize, description_len + 1));
-                        attribute_buf = try allocator.resize(attribute_buf, @intCast(usize, attributes_len + 1));
+                        description_buf = try allocator.resize(description_buf, @as(usize, @intCast(description_len + 1)));
+                        attribute_buf = try allocator.resize(attribute_buf, @as(usize, @intCast(attributes_len + 1)));
                         continue :run_loop;
                     },
                     else => |err| return err,
@@ -106,16 +106,16 @@ pub const Environment = struct {
 
     pub fn getAttribute(self: Environment, attribute: Attribute) !AttributeValue {
         var value: i32 = 0;
-        const result = c.SQLGetEnvAttr(self.handle, @enumToInt(attribute), &value, 0, null);
-        return switch (@intToEnum(SqlReturn, result)) {
+        const result = c.SQLGetEnvAttr(self.handle, @intFromEnum(attribute), &value, 0, null);
+        return switch (@as(SqlReturn, @enumFromInt(result))) {
             .success, .success_with_info => attribute.getAttributeValue(value),
             else => self.getLastError(),
         };
     }
 
     pub fn setAttribute(self: Environment, value: AttributeValue) !void {
-        const result = c.SQLSetEnvAttr(self.handle, @enumToInt(std.meta.activeTag(value)), @intToPtr(*anyopaque, value.getValue()), 0);
-        return switch (@intToEnum(SqlReturn, result)) {
+        const result = c.SQLSetEnvAttr(self.handle, @intFromEnum(std.meta.activeTag(value)), @as(*anyopaque, @ptrFromInt(value.getValue())), 0);
+        return switch (@as(SqlReturn, @enumFromInt(result))) {
             .success, .success_with_info => {},
             else => self.getLastError(),
         };
