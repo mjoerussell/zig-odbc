@@ -24,7 +24,7 @@ pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    var lib = b.addStaticLibrary(.{
+    const lib = b.addStaticLibrary(.{
         .name = "odbc",
         .target = target,
         .optimize = optimize,
@@ -60,7 +60,7 @@ pub fn setupOdbcDependencies(step: *std.build.Step.Compile) void {
 pub fn testStep(b: *Build, optimize: std.builtin.OptimizeMode, target: std.zig.CrossTarget) [test_files.len]*std.build.Step.Compile {
     var tests: [test_files.len]*std.build.Step.Compile = undefined;
     inline for (test_files, 0..) |item, index| {
-        var current_tests = b.addTest(.{
+        const current_tests = b.addTest(.{
             .name = item.name,
             .root_source_file = item.source_file,
             .optimize = optimize,
