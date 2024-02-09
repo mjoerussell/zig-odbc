@@ -24,22 +24,25 @@ pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const lib = b.addStaticLibrary(.{
-        .name = "odbc",
+    const lib = b.addSharedLibrary(.{
+        .name = "zigodbc",
+        .root_source_file = .{ .path = "src/lib.zig" },
+        .version = .{ .major = 0, .minor = 0, .patch = 0 },
         .target = target,
         .optimize = optimize,
     });
 
     setupOdbcDependencies(lib);
+
     b.installArtifact(lib);
 
     _ = b.addModule("zig-odbc", .{
         .root_source_file = .{ .path = "src/lib.zig" },
     });
 
-    const test_cmd = b.step("test", "Run library tests");
+    const test_step = b.step("test", "Run library tests");
 
-    var tests: [test_files.len]*std.Build.Step.Compile = undefined;
+    var tests: [test_files.len]*std.Build.Step.Run = undefined;
     inline for (test_files, 0..) |item, index| {
         const current_tests = b.addTest(.{
             .name = item.name,
@@ -50,10 +53,12 @@ pub fn build(b: *Build) void {
 
         setupOdbcDependencies(current_tests);
 
-        tests[index] = current_tests;
+        const run_current_unit_tests = b.addRunArtifact(current_tests);
+
+        tests[index] = run_current_unit_tests;
     }
     for (tests) |t| {
-        test_cmd.dependOn(&t.step);
+        test_step.dependOn(&t.step);
     }
 }
 
@@ -65,6 +70,5 @@ pub fn setupOdbcDependencies(step: *std.Build.Step.Compile) void {
         step.addIncludeDir("/usr/local/include");
         step.addIncludeDir("/usr/local/lib");
     }
-
     step.linkSystemLibrary(odbc_library_name);
 }

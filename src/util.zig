@@ -88,12 +88,9 @@ test "bitmask" {
 
 test "enum error" {
     const Base = enum { A, B, C };
-
     const BaseError = EnumErrorSet(Base);
 
-    try std.testing.expectEqualStrings("A", @typeInfo(BaseError).ErrorSet.?[0].name);
-    try std.testing.expectEqualStrings("B", @typeInfo(BaseError).ErrorSet.?[1].name);
-    try std.testing.expectEqualStrings("C", @typeInfo(BaseError).ErrorSet.?[2].name);
+    try std.testing.expectEqual(BaseError, error{ A, B, C });
 
     // Just making sure everything compiles, that BaseError is accepted in the error
     // spot of the return type.
