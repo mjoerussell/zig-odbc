@@ -1,18 +1,18 @@
 const std = @import("std");
-const TypeInfo = std.builtin.TypeInfo;
+const Type = std.builtin.Type;
 
 pub fn Bitmask(comptime BackingType: type, comptime fields: anytype) type {
-    const BaseStruct = packed struct {};
-    var base_struct_info = @typeInfo(BaseStruct);
-
-    var incoming_fields: [fields.len]TypeInfo.StructField = undefined;
+    var incoming_fields: [fields.len]Type.StructField = undefined;
     inline for (fields, 0..) |field, i| {
-        incoming_fields[i] = .{ .name = field[0], .field_type = bool, .default_value = false, .is_comptime = false, .alignment = @alignOf(bool) };
+        incoming_fields[i] = .{ .name = field[0], .type = bool, .default_value = &false, .is_comptime = false, .alignment = @alignOf(bool) };
     }
 
-    base_struct_info.Struct.fields = incoming_fields[0..];
-
-    const BitmaskFields = @Type(base_struct_info);
+    const BitmaskFields = @Type(.{ .Struct = .{
+        .layout = .Auto,
+        .fields = incoming_fields[0..],
+        .decls = &[_]std.builtin.Type.Declaration{},
+        .is_tuple = false,
+    } });
 
     return struct {
         pub const Result = BitmaskFields;
@@ -49,12 +49,12 @@ pub fn Bitmask(comptime BackingType: type, comptime fields: anytype) type {
 pub fn EnumErrorSet(comptime BaseEnum: type) type {
     switch (@typeInfo(BaseEnum)) {
         .Enum => |info| {
-            var error_set: [info.fields.len]TypeInfo.Error = undefined;
+            var error_set: [info.fields.len]Type.Error = undefined;
             inline for (info.fields, 0..) |field, index| {
                 error_set[index] = .{ .name = field.name };
             }
 
-            return @Type(TypeInfo{ .ErrorSet = error_set[0..] });
+            return @Type(Type{ .ErrorSet = error_set[0..] });
         },
         else => @compileError("EnumErrorSet requires an enum, found " ++ @typeName(BaseEnum)),
     }
