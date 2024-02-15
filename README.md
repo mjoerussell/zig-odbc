@@ -53,7 +53,7 @@ This example connects to a database, sets and gets some attributes, and creates 
 
 ```zig
 const std = @import("std");
-const odbc = @import("odbc");
+const odbc = @import("zig-odbc");
 
 pub fn main() anyerror!void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
