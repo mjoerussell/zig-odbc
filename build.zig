@@ -24,6 +24,10 @@ pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    _ = b.addModule("zig-odbc", .{
+        .root_source_file = .{ .path = "src/lib.zig" },
+    });
+
     const lib = b.addSharedLibrary(.{
         .name = "zigodbc",
         .root_source_file = .{ .path = "src/lib.zig" },
@@ -35,10 +39,6 @@ pub fn build(b: *Build) void {
     setupOdbcDependencies(lib);
 
     b.installArtifact(lib);
-
-    _ = b.addModule("zig-odbc", .{
-        .root_source_file = .{ .path = "src/lib.zig" },
-    });
 
     const test_step = b.step("test", "Run library tests");
 
