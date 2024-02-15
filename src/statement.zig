@@ -315,7 +315,7 @@ pub const Statement = struct {
         var name_length: c_short = 0;
         _ = c.SQLGetCursorName(self.handle, null, 0, &name_length);
 
-        var name_buffer = try allocator.allocSentinel(u8, name_length, 0);
+        const name_buffer = try allocator.allocSentinel(u8, name_length, 0);
         errdefer allocator.free(name_buffer);
 
         const result = c.SQLGetCursorName(self.handle, name_buffer.ptr, @as(c_short, @intCast(name_buffer.len)), &name_length);
@@ -346,7 +346,7 @@ pub const Statement = struct {
                             if (result_type == .success_with_info) {
                                 // SuccessWithInfo might indicate that only part of the column was retrieved, and in that case we need to
                                 // continue fetching the rest of it. If we're getting long data, SQLGetData will return NoData
-                                var error_buffer: [@sizeOf(odbc_error.SqlState) * 3]u8 = undefined;
+                                const error_buffer: [@sizeOf(odbc_error.SqlState) * 3]u8 = undefined;
                                 var fba = std.heap.FixedBufferAllocator.init(error_buffer);
                                 const errors = try self.getErrors(&fba.allocator);
                                 for (errors) |err| if (err == .StringRightTrunc) {

@@ -6,7 +6,7 @@ const Build = std.Build;
 
 const TestItem = struct {
     name: []const u8,
-    source_file: std.build.FileSource,
+    source_file: std.Build.LazyPath,
 };
 
 const test_files = [_]TestItem{
@@ -24,43 +24,27 @@ pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    var lib = b.addStaticLibrary(.{
-        .name = "odbc",
+    _ = b.addModule("zig-odbc", .{
+        .root_source_file = .{ .path = "src/lib.zig" },
+    });
+
+    const lib = b.addSharedLibrary(.{
+        .name = "zigodbc",
+        .root_source_file = .{ .path = "src/lib.zig" },
+        .version = .{ .major = 0, .minor = 0, .patch = 0 },
         .target = target,
         .optimize = optimize,
     });
 
     setupOdbcDependencies(lib);
+
     b.installArtifact(lib);
 
-    _ = b.addModule("zig-odbc", .{
-        .source_file = .{ .path = "src/lib.zig" },
-    });
+    const test_step = b.step("test", "Run library tests");
 
-    const test_cmd = b.step("test", "Run library tests");
-
-    const tests = testStep(b, optimize, target);
-    for (tests) |t| {
-        test_cmd.dependOn(&t.step);
-    }
-}
-
-pub fn setupOdbcDependencies(step: *std.build.Step.Compile) void {
-    step.linkLibC();
-
-    const odbc_library_name = if (builtin.os.tag == .windows) "odbc32" else "odbc";
-    if (builtin.os.tag == .macos) {
-        step.addIncludeDir("/usr/local/include");
-        step.addIncludeDir("/usr/local/lib");
-    }
-
-    step.linkSystemLibrary(odbc_library_name);
-}
-
-pub fn testStep(b: *Build, optimize: std.builtin.OptimizeMode, target: std.zig.CrossTarget) [test_files.len]*std.build.Step.Compile {
-    var tests: [test_files.len]*std.build.Step.Compile = undefined;
+    var tests: [test_files.len]*std.Build.Step.Run = undefined;
     inline for (test_files, 0..) |item, index| {
-        var current_tests = b.addTest(.{
+        const current_tests = b.addTest(.{
             .name = item.name,
             .root_source_file = item.source_file,
             .optimize = optimize,
@@ -69,8 +53,22 @@ pub fn testStep(b: *Build, optimize: std.builtin.OptimizeMode, target: std.zig.C
 
         setupOdbcDependencies(current_tests);
 
-        tests[index] = current_tests;
-    }
+        const run_current_unit_tests = b.addRunArtifact(current_tests);
 
-    return tests;
+        tests[index] = run_current_unit_tests;
+    }
+    for (tests) |t| {
+        test_step.dependOn(&t.step);
+    }
+}
+
+pub fn setupOdbcDependencies(step: *std.Build.Step.Compile) void {
+    step.linkLibC();
+
+    const odbc_library_name = if (builtin.os.tag == .windows) "odbc32" else "odbc";
+    if (builtin.os.tag == .macos) {
+        step.addIncludePath(.{ .path = "/usr/local/include" });
+        step.addIncludePath(.{ .path = "/usr/local/lib" });
+    }
+    step.linkSystemLibrary(odbc_library_name);
 }

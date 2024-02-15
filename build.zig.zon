@@ -1,0 +1,18 @@
+.{
+    .name = "zig-odbc",
+    .version = "0.1.0",
+
+    // This is currently advisory only; Zig does not yet do anything
+    // with this value.
+    .minimum_zig_version = "0.12.0",
+
+    .dependencies = .{},
+
+    .paths = .{
+      "build.zig",
+      "build.zig.zon",
+      "src",
+      "LICENSE",
+      "README.md",
+    },
+}

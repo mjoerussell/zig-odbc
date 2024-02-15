@@ -1604,7 +1604,7 @@ pub const StatementAttributeValue = union(StatementAttribute) {
             .RowStatusPointer => |v| std.mem.sliceAsBytes(v)[0..],
         };
 
-        var result_buffer = try allocator.alloc(u8, bytes.len);
+        const result_buffer = try allocator.alloc(u8, bytes.len);
         std.mem.copy(u8, result_buffer, bytes);
 
         return result_buffer;

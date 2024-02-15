@@ -14,12 +14,20 @@ You can use the following configuration as a starting point when adding `zig-odb
 .{
     .name = "",
     .version = "",
+    .minimum_zig_version = "0.12.0",
     .dependencies = .{
         .zig_odbc = .{
             .url = "https://github.com/mjoerussell/zig-odbc/<sha>.tar.gz",
             .hash = "<hash>",
         }
-    }
+    },
+    .paths = .{
+      "build.zig",
+      "build.zig.zon",
+      "src",
+      "LICENSE",
+      "README.md",
+    },
 }
 
 // build.zig
@@ -53,7 +61,7 @@ This example connects to a database, sets and gets some attributes, and creates 
 
 ```zig
 const std = @import("std");
-const odbc = @import("odbc");
+const odbc = @import("zig-odbc");
 
 pub fn main() anyerror!void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
